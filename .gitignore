@@ -1,0 +1,9 @@
+# Local build & dev artifacts
+*.exe
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Scratch and temp files
+scratch/
