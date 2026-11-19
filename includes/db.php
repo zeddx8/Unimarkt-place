@@ -37,7 +37,20 @@ if (!$conn || $conn->connect_error) {
         $root_conn->close();
 
         // Reconnect to unimarket database
-        $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME);
+        $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
+    }
+}
+
+// Auto-seed tables if database exists but is completely empty (e.g. freshly created cloud MySQL on Railway/Aiven)
+if ($conn && !$conn->connect_error) {
+    $tables_check = $conn->query("SHOW TABLES");
+    if (!$tables_check || $tables_check->num_rows === 0) {
+        $sql_file = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'sql' . DIRECTORY_SEPARATOR . 'unimarket.sql';
+        if (file_exists($sql_file)) {
+            $sql_content = file_get_contents($sql_file);
+            $conn->multi_query($sql_content);
+            while ($conn->more_results() && $conn->next_result()) { /* flush multi query */ }
+        }
     }
 }
 
