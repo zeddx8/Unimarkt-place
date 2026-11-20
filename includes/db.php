@@ -8,11 +8,31 @@
 date_default_timezone_set('Africa/Accra');
 
 // Database credentials with Cloud & Environment variable fallbacks (Railway, Vercel, Docker, cPanel)
-define('DB_HOST', getenv('DB_HOST') ?: (getenv('MYSQLHOST') ?: 'localhost'));
-define('DB_USER', getenv('DB_USER') ?: (getenv('MYSQLUSER') ?: 'root'));
-define('DB_PASS', getenv('DB_PASS') !== false ? getenv('DB_PASS') : (getenv('MYSQLPASSWORD') !== false ? getenv('MYSQLPASSWORD') : ''));
-define('DB_NAME', getenv('DB_NAME') ?: (getenv('MYSQLDATABASE') ?: 'unimarket'));
-define('DB_PORT', (int)(getenv('DB_PORT') ?: (getenv('MYSQLPORT') ?: 3306)));
+$db_url = getenv('MYSQL_URL') ?: (getenv('DATABASE_URL') ?: '');
+if (!empty($db_url) && (strpos($db_url, 'mysql://') === 0 || strpos($db_url, 'mysqli://') === 0)) {
+    $parsed_db = parse_url($db_url);
+    $default_host = $parsed_db['host'] ?? 'localhost';
+    $default_user = $parsed_db['user'] ?? 'root';
+    $default_pass = $parsed_db['pass'] ?? '';
+    $default_name = ltrim($parsed_db['path'] ?? '', '/');
+    $default_port = (int)($parsed_db['port'] ?? 3306);
+} else {
+    $default_host = getenv('DB_HOST') ?: (getenv('MYSQLHOST') ?: 'localhost');
+    // If user mistakenly configured their own public web app domain as DB_HOST, fall back to Railway internal DNS
+    if (strpos($default_host, '.railway.app') !== false) {
+        $default_host = getenv('MYSQLHOST') ?: 'mysql.railway.internal';
+    }
+    $default_user = getenv('DB_USER') ?: (getenv('MYSQLUSER') ?: 'root');
+    $default_pass = getenv('DB_PASS') !== false ? getenv('DB_PASS') : (getenv('MYSQLPASSWORD') !== false ? getenv('MYSQLPASSWORD') : '');
+    $default_name = getenv('DB_NAME') ?: (getenv('MYSQLDATABASE') ?: 'unimarket');
+    $default_port = (int)(getenv('DB_PORT') ?: (getenv('MYSQLPORT') ?: 3306));
+}
+
+define('DB_HOST', $default_host);
+define('DB_USER', $default_user);
+define('DB_PASS', $default_pass);
+define('DB_NAME', $default_name);
+define('DB_PORT', $default_port);
 
 // ── Database Connection ──────────────────────────────────────
 mysqli_report(MYSQLI_REPORT_OFF);
