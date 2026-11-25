@@ -103,35 +103,35 @@ if (isLoggedIn()) {
 
             <!-- Right Action Stack -->
             <div class="d-flex align-items-center gap-2 ms-auto">
-                <!-- Dark/Light Theme Toggle -->
-                <button type="button" id="themeToggleBtn" class="header-action-btn" title="Toggle Dark / Light Mode" aria-label="Toggle theme">
+                <!-- Dark/Light Theme Toggle (Desktop Header; Mobile via Account Menu) -->
+                <button type="button" id="themeToggleBtn" class="header-action-btn d-none d-md-inline-flex" title="Toggle Dark / Light Mode" aria-label="Toggle theme">
                     <i class="bi bi-moon-stars" id="themeToggleIcon"></i>
                 </button>
 
-                <!-- Wishlist -->
-                <a href="wishlist.php" class="header-action-btn <?= $current_page=='wishlist.php'?'active':'' ?>" title="Saved Items">
+                <!-- Wishlist (Desktop Header; Mobile via Account Menu) -->
+                <a href="wishlist.php" class="header-action-btn d-none d-md-inline-flex <?= $current_page=='wishlist.php'?'active':'' ?>" title="Saved Items">
                     <i class="bi bi-heart"></i>
                     <span class="header-badge-count" id="navWishlistBadge" style="<?= $wishlist_count > 0 ? '' : 'display:none;' ?>">
                         <?= $wishlist_count ?>
                     </span>
                 </a>
 
-                <!-- Cart Button with Bubble -->
+                <!-- Cart Button with Bubble (Always Visible) -->
                 <button type="button" class="header-action-btn" data-bs-toggle="offcanvas" data-bs-target="#cartDrawer" aria-controls="cartDrawer" title="Shopping Cart">
                     <i class="bi bi-cart3"></i>
                     <span class="header-badge-count cart-count-badge" style="display:none;">0</span>
                 </button>
 
-                <!-- Messages -->
-                <a href="chat.php" class="header-action-btn <?= $current_page=='chat.php'?'active':'' ?>" title="Messages & Inquiries">
+                <!-- Messages (Desktop Header; Mobile via Bottom Nav & Account Menu) -->
+                <a href="chat.php" class="header-action-btn d-none d-md-inline-flex <?= $current_page=='chat.php'?'active':'' ?>" title="Messages & Inquiries">
                     <i class="bi bi-chat-dots"></i>
                     <?php if ($unread_messages > 0): ?>
                         <span class="header-badge-count" style="background:var(--color-danger);"><?= $unread_messages ?></span>
                     <?php endif; ?>
                 </a>
 
-                <!-- User Dropdown Menu -->
-                <div class="dropdown ms-1">
+                <!-- User Dropdown Menu (Always Visible) -->
+                <div class="dropdown ms-md-1">
                     <button class="header-action-btn border-0 dropdown-toggle p-0 overflow-hidden" data-bs-toggle="dropdown" aria-expanded="false" title="Account Menu">
                         <?php if (!empty($_SESSION['avatar'])): ?>
                             <img src="<?= htmlspecialchars(getProductImageUrl($_SESSION['avatar'])) ?>" alt="<?= sanitize($_SESSION['full_name']) ?>" style="width:100%;height:100%;object-fit:cover;" onerror="this.onerror=null; this.style.display='none';">
@@ -139,17 +139,36 @@ if (isLoggedIn()) {
                             <span class="fw-bold" style="font-size:14px;color:var(--brand-slate);"><?= getAvatar($_SESSION['full_name']) ?></span>
                         <?php endif; ?>
                     </button>
-                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-2" style="border-radius:14px;min-width:240px;">
+                    <ul class="dropdown-menu dropdown-menu-end shadow-lg border-0 py-2 um-account-dropdown" style="border-radius:14px;min-width:250px;">
                         <li class="px-3 py-2 border-bottom">
                             <div class="fw-bold text-dark text-truncate" style="font-size:14px;"><?= sanitize($_SESSION['full_name']) ?></div>
                             <div class="text-muted small text-truncate" style="font-size:12px;"><?= sanitize($_SESSION['email']) ?></div>
                             <span class="badge bg-light text-muted border mt-1" style="font-size:10.5px;"><i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($_SESSION['region'] ?? 'Ghana Campus') ?></span>
                         </li>
-                        <li><a class="dropdown-item py-2" href="profile.php"><i class="bi bi-person-badge me-2 text-primary"></i>My Campus Profile & Delivery</a></li>
-                        <li><a class="dropdown-item py-2" href="orders.php"><i class="bi bi-receipt me-2 text-info"></i>My Orders & Tracking</a></li>
-                        <li><a class="dropdown-item py-2" href="my-listings.php"><i class="bi bi-rocket-takeoff me-2 text-warning"></i>My Student Venture / Listings</a></li>
+                        <li>
+                            <a class="dropdown-item py-2 fw-semibold" href="post.php" style="color:var(--accent-orange);">
+                                <i class="bi bi-shop me-2"></i>Become a Seller
+                            </a>
+                        </li>
+                        <li><hr class="dropdown-divider my-1"></li>
+                        <li><a class="dropdown-item py-2" href="profile.php"><i class="bi bi-person-badge me-2 text-primary"></i>My Profile &amp; Settings</a></li>
+                        <li><a class="dropdown-item py-2" href="orders.php"><i class="bi bi-receipt me-2 text-info"></i>My Orders &amp; Tracking</a></li>
+                        <li><a class="dropdown-item py-2" href="my-listings.php"><i class="bi bi-box-seam me-2 text-warning"></i>My Student Venture / Listings</a></li>
+                        <li>
+                            <a class="dropdown-item py-2 d-flex align-items-center justify-content-between" href="chat.php">
+                                <span><i class="bi bi-chat-dots me-2 text-primary"></i>Messages &amp; Chat</span>
+                                <?php if ($unread_messages > 0): ?>
+                                    <span class="badge bg-danger rounded-pill"><?= $unread_messages ?></span>
+                                <?php endif; ?>
+                            </a>
+                        </li>
                         <li><a class="dropdown-item py-2" href="wishlist.php"><i class="bi bi-heart me-2 text-danger"></i>Saved Items</a></li>
-                        <li><a class="dropdown-item py-2" href="cart.php"><i class="bi bi-bag-check me-2 text-success"></i>Cart & Checkout</a></li>
+                        <li><a class="dropdown-item py-2" href="cart.php"><i class="bi bi-bag-check me-2 text-success"></i>Cart &amp; Checkout</a></li>
+                        <li class="d-md-none">
+                            <button type="button" class="dropdown-item py-2" onclick="document.getElementById('themeToggleBtn')?.click();">
+                                <i class="bi bi-moon-stars me-2 text-secondary"></i>Switch Dark / Light Theme
+                            </button>
+                        </li>
                         <?php if (!empty($_SESSION['is_admin'])): ?>
                         <li><hr class="dropdown-divider"></li>
                         <li><a class="dropdown-item py-2 fw-bold" style="color:var(--accent-orange);" href="admin/index.php"><i class="bi bi-speedometer2 me-2"></i>Campus Admin Console</a></li>
@@ -159,8 +178,8 @@ if (isLoggedIn()) {
                     </ul>
                 </div>
 
-                <!-- Sell Button -->
-                <a href="post.php" class="btn btn-orange btn-sm ms-2 d-none d-sm-inline-flex align-items-center gap-1" style="padding:9px 18px;">
+                <!-- Sell Button (Desktop Only) -->
+                <a href="post.php" class="btn btn-orange btn-sm ms-2 d-none d-md-inline-flex align-items-center gap-1" style="padding:9px 18px;">
                     <i class="bi bi-rocket-takeoff-fill"></i> Become a Student Seller
                 </a>
             </div>

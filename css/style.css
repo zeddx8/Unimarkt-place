@@ -1425,6 +1425,18 @@ html, body {
         min-width: 0 !important;
         width: 100% !important;
     }
+
+    /* Account Dropdown Mobile Sizing & Touch Targets */
+    .um-account-dropdown {
+        max-width: calc(100vw - 24px) !important;
+        min-width: 240px !important;
+    }
+    .um-account-dropdown .dropdown-item {
+        min-height: 44px;
+        display: flex;
+        align-items: center;
+        font-size: 14.5px;
+    }
 }
 
 @media (max-width: 389.98px) {
