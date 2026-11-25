@@ -117,23 +117,21 @@ Uses the built-in Windows .NET Framework compiler (`csc.exe`) without needing ex
 
 ---
 
-## Demo Login Credentials
+## Admin Login Credentials
 
-Pre-configured accounts for testing:
+Default administrator account:
 
 | Account Type | Email Address | Password | Permissions |
 |--------------|---------------|----------|-------------|
-| **Student / Customer** | `kwame.mensah@unimarket.com.gh` | `password` | Shopping, cart, wishlist, orders |
-| **Student Merchant / Founder** | `abena.osei@unimarket.com.gh` | `password` | Venture inventory, listings, orders, chat |
 | **Platform Administrator** | `admin@unimarket.com.gh` | `password` | Full admin console, orders, CRUD |
 
-*(Note: Production login form is completely clean of pre-filled demo boxes).*
+*(Note: Production login form is completely clean of pre-filled demo boxes, and no demo user or merchant accounts are seeded).*
 
 ---
 
-## Database Reset & Seed Script
+## Database Reset & Schema Initialization
 
-To wipe all test data and re-seed the super-admin account, categories, commercial products, and orders:
+To reset the database schema and initialize only the super-admin account:
 ```cmd
 php reset-db.php
 ```
