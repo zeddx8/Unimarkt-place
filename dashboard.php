@@ -108,7 +108,7 @@ include 'includes/header.php';
                     <span style="color:#F59E0B;font-size:0.86em;font-weight:700;">Across Ghanaian Campuses</span>
                 </h1>
                 <p class="hero-subtext">
-                    Shop student-founded brands, custom streetwear, tech gadgets, hostel essentials, books, snacks, and creative campus services from verified student entrepreneurs at Legon, KNUST, UCC, UPSA, Ashesi, and nationwide.
+                    Shop student-founded brands, custom streetwear, tech gadgets, hostel essentials, books, snacks, and creative campus services from verified student entrepreneurs at CCTU, UCC ,Legon, KNUST, UPSA, and nationwide.
                 </p>
 
                 <!-- Search Bar with Region / Campus Selector -->
