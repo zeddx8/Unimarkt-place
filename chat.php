@@ -136,17 +136,24 @@ include 'includes/header.php';
 ?>
 
 <div class="container-fluid py-4" style="max-width:1100px;">
-    <h4 class="section-title mb-4"><i class="bi bi-chat-dots me-2" style="color:var(--emerald);"></i>Messages & Inquiries</h4>
+    <div class="d-flex align-items-center justify-content-between mb-4 flex-wrap gap-2">
+        <h4 class="fw-bold mb-0" style="color:var(--brand-slate);">
+            <i class="bi bi-chat-dots-fill me-2" style="color:var(--accent-orange);"></i>Messages &amp; Inquiries
+        </h4>
+        <a href="dashboard.php" class="btn btn-outline-secondary btn-sm px-3" style="border-radius:10px;">
+            <i class="bi bi-arrow-left me-1"></i> Back to Marketplace
+        </a>
+    </div>
 
     <div class="um-card overflow-hidden">
         <div class="row g-0" style="min-height:600px;">
 
             <!-- ── Thread List ── -->
-            <div class="col-md-4 chat-sidebar">
+            <div class="col-md-4 chat-sidebar <?= ($active_product && $active_receiver) ? 'd-none d-md-block' : '' ?>">
                 <?php if ($threads->num_rows === 0): ?>
-                <div class="empty-state py-5 text-center">
+                <div class="empty-state py-5 px-3 text-center">
                     <div class="empty-icon mb-2"><i class="bi bi-chat-square-dots fs-1 text-muted"></i></div>
-                    <p class="text-muted">No messages yet</p>
+                    <p class="text-muted mb-3">No messages yet</p>
                     <a href="dashboard.php" class="btn btn-orange btn-sm px-4">Browse Items</a>
                 </div>
                 <?php else: ?>
@@ -154,27 +161,27 @@ include 'includes/header.php';
                 <?php $is_active = ($thread['product_id']==$active_product_id && $thread['other_user_id']==$active_receiver_id); ?>
                 <a href="chat.php?product_id=<?= $thread['product_id'] ?>&seller_id=<?= $thread['other_user_id'] ?>"
                    class="chat-thread text-decoration-none <?= $is_active ? 'active' : '' ?>">
-                    <div class="seller-avatar" style="width:42px;height:42px;font-size:14px;flex-shrink:0;">
+                    <div class="seller-avatar" style="width:44px;height:44px;font-size:14px;">
                         <?php if ($thread['other_avatar']): ?>
-                            <img src="<?= getProductImageUrl($thread['other_avatar']) ?>" alt="" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($thread['other_name']) ?>&background=0F172A&color=fff';">
+                            <img src="<?= htmlspecialchars(getProductImageUrl($thread['other_avatar'])) ?>" alt="" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($thread['other_name']) ?>&background=0F172A&color=fff';">
                         <?php else: ?>
                             <?= getAvatar($thread['other_name']) ?>
                         <?php endif; ?>
                     </div>
                     <div style="min-width:0;flex:1;">
-                        <div class="d-flex justify-content-between align-items-start">
-                            <span class="fw-700" style="font-size:14px;"><?= sanitize($thread['other_name']) ?></span>
-                            <span style="font-size:10px;color:var(--muted);"><?= timeAgo($thread['last_time']) ?></span>
+                        <div class="d-flex justify-content-between align-items-start gap-2">
+                            <span class="fw-700 text-truncate" style="font-size:14px;color:var(--brand-slate);"><?= sanitize($thread['other_name']) ?></span>
+                            <span class="flex-shrink-0" style="font-size:11px;color:var(--text-muted);"><?= timeAgo($thread['last_time']) ?></span>
                         </div>
-                        <div style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
-                            <?= $thread['cat_icon'] ?> <?= sanitize($thread['title']) ?>
+                        <div style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
+                            <i class="bi <?= htmlspecialchars($thread['cat_icon']) ?> me-1 text-primary"></i><?= sanitize($thread['title']) ?>
                         </div>
-                        <div class="d-flex justify-content-between align-items-center mt-1">
-                            <span style="font-size:12px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:150px;">
+                        <div class="d-flex justify-content-between align-items-center mt-1 gap-2">
+                            <span style="font-size:12px;color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">
                                 <?= sanitize($thread['last_msg']) ?>
                             </span>
                             <?php if ($thread['unread_cnt'] > 0): ?>
-                            <span class="badge-dot" style="position:static;width:18px;height:18px;font-size:10px;"><?= $thread['unread_cnt'] ?></span>
+                            <span class="badge-dot" style="width:20px;height:20px;font-size:10px;"><?= (int)$thread['unread_cnt'] ?></span>
                             <?php endif; ?>
                         </div>
                     </div>
@@ -184,26 +191,29 @@ include 'includes/header.php';
             </div>
 
             <!-- ── Chat Window ── -->
-            <div class="col-md-8 d-flex flex-column" style="border-left:1.5px solid var(--border);">
+            <div class="col-md-8 d-flex flex-column <?= (!$active_product || !$active_receiver) ? 'd-none d-md-flex' : '' ?>" style="border-left:1px solid var(--border-color);">
                 <?php if ($active_product && $active_receiver): ?>
 
                     <!-- Chat Header -->
-                    <div class="d-flex align-items-center gap-3 p-3" style="border-bottom:1.5px solid var(--border);">
+                    <div class="d-flex align-items-center gap-3 p-3 bg-white" style="border-bottom:1px solid var(--border-color);">
+                        <a href="chat.php" class="btn btn-sm btn-outline-secondary d-md-none" title="All Conversations">
+                            <i class="bi bi-arrow-left"></i>
+                        </a>
                         <div class="seller-avatar" style="width:42px;height:42px;font-size:14px;">
                             <?php if (!empty($active_receiver['avatar'])): ?>
-                                <img src="<?= getProductImageUrl($active_receiver['avatar']) ?>" alt="" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($active_receiver['full_name']) ?>&background=0F172A&color=fff';">
+                                <img src="<?= htmlspecialchars(getProductImageUrl($active_receiver['avatar'])) ?>" alt="" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($active_receiver['full_name']) ?>&background=0F172A&color=fff';">
                             <?php else: ?>
                                 <?= getAvatar($active_receiver['full_name']) ?>
                             <?php endif; ?>
                         </div>
-                        <div>
-                            <div class="fw-700"><?= sanitize($active_receiver['full_name']) ?></div>
-                            <div style="font-size:12px;color:var(--muted);">
-                                <?= $active_product['cat_icon'] ?> <?= sanitize($active_product['title']) ?> ·
-                                <strong style="color:var(--emerald);"><?= formatPrice($active_product['price']) ?></strong>
+                        <div class="min-w-0">
+                            <div class="fw-700 text-truncate" style="color:var(--brand-slate);"><?= sanitize($active_receiver['full_name']) ?></div>
+                            <div class="text-truncate" style="font-size:12px;color:var(--text-muted);">
+                                <i class="bi <?= htmlspecialchars($active_product['cat_icon']) ?> me-1 text-primary"></i><?= sanitize($active_product['title']) ?> ·
+                                <strong style="color:var(--accent-green);"><?= formatPrice($active_product['price']) ?></strong>
                             </div>
                         </div>
-                        <a href="product.php?id=<?= $active_product['id'] ?>" class="ms-auto btn btn-outline-success btn-sm" style="border-radius:8px;">
+                        <a href="product.php?id=<?= $active_product['id'] ?>" class="ms-auto btn btn-outline-secondary btn-sm flex-shrink-0" style="border-radius:8px;">
                             View Product
                         </a>
                     </div>
@@ -219,7 +229,7 @@ include 'includes/header.php';
                         <div class="d-flex <?= $msg['sender_id']==$uid ? 'justify-content-end' : 'justify-content-start' ?>">
                             <div class="msg-bubble <?= $msg['sender_id']==$uid ? 'msg-me' : 'msg-them' ?>">
                                 <?= nl2br(sanitize($msg['message'])) ?>
-                                <div style="font-size:10px;opacity:.6;margin-top:4px;text-align:right;"><?= timeAgo($msg['created_at']) ?></div>
+                                <div style="font-size:10px;opacity:.7;margin-top:4px;text-align:right;"><?= timeAgo($msg['created_at']) ?></div>
                             </div>
                         </div>
                         <?php endforeach; ?>
@@ -227,7 +237,7 @@ include 'includes/header.php';
                     </div>
 
                     <!-- Input -->
-                    <div class="p-3" style="border-top:1.5px solid var(--border);">
+                    <div class="p-3 bg-white" style="border-top:1px solid var(--border-color);">
                         <form id="chatMsgForm" method="POST"
                               data-product="<?= $active_product_id ?>"
                               data-receiver="<?= $active_receiver_id ?>"

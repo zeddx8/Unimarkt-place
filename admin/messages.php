@@ -124,7 +124,8 @@ $pending_reports = (int)($conn->query("SELECT COUNT(*) FROM reports WHERE status
                         </td>
                         <td class="text-muted small"><?= timeAgo($m['created_at']) ?></td>
                         <td>
-                            <a href="chat.php?product_id=<?= $m['product_id'] ?>&user_id=<?= $m['sender_id'] ?>" class="btn btn-sm btn-outline-secondary py-1 px-2">
+                            <?php $customer_id = !empty($m['sender_is_admin']) ? (int)$m['receiver_id'] : (int)$m['sender_id']; ?>
+                            <a href="chat.php?product_id=<?= (int)$m['product_id'] ?>&user_id=<?= $customer_id ?>" class="btn btn-sm btn-outline-secondary py-1 px-2">
                                 <i class="bi bi-chat-left-text me-1"></i> Open
                             </a>
                         </td>
