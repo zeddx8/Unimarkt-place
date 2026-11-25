@@ -16,13 +16,36 @@ if ($uri === '/' || $uri === '') {
 
 $file = $root . $uri;
 
-// 1. Direct PHP file match (e.g. /dashboard.php, /register.php, /cart.php)
+// 1. Direct file match (PHP scripts or uploaded static assets)
 if (file_exists($file) && !is_dir($file)) {
-    if (pathinfo($file, PATHINFO_EXTENSION) === 'php') {
+    $ext = strtolower(pathinfo($file, PATHINFO_EXTENSION));
+    if ($ext === 'php') {
         require $file;
         exit();
     }
-    return false; // Static asset served by Vercel
+
+    $mimes = [
+        'jpg'  => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png'  => 'image/png',
+        'gif'  => 'image/gif',
+        'webp' => 'image/webp',
+        'svg'  => 'image/svg+xml',
+        'avif' => 'image/avif',
+        'css'  => 'text/css',
+        'js'   => 'application/javascript',
+        'ico'  => 'image/x-icon',
+    ];
+
+    if (isset($mimes[$ext])) {
+        header('Content-Type: ' . $mimes[$ext]);
+        header('Content-Length: ' . filesize($file));
+        header('Cache-Control: public, max-age=86400');
+        readfile($file);
+        exit();
+    }
+
+    return false; // Other static asset served by host
 }
 
 // 2. Directory index match (e.g. /admin/ -> /admin/index.php)

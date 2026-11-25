@@ -3,10 +3,10 @@ require_once 'includes/db.php';
 requireLogin();
 
 $product_id  = intval($_GET['product_id'] ?? 0);
-$receiver_id = intval($_GET['receiver_id'] ?? 0);
-$uid         = $_SESSION['user_id'];
+$receiver_id = intval($_GET['receiver_id'] ?? ($_GET['seller_id'] ?? ($_GET['user_id'] ?? 0)));
+$uid         = (int)$_SESSION['user_id'];
 
-if (!canAccessProductChat($conn, $product_id, (int) $uid, $receiver_id, !empty($_SESSION['is_admin']))) {
+if ($product_id < 1 || $receiver_id < 1 || !canAccessProductChat($conn, $product_id, $uid, $receiver_id, !empty($_SESSION['is_admin']))) {
     http_response_code(403);
     exit();
 }

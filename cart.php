@@ -204,8 +204,15 @@ function renderFullCartPage() {
     items.forEach(item => {
         const lineTotal = item.price * item.quantity;
         total += lineTotal;
-        const imgTag = item.image
-            ? `<img src="uploads/${item.image}" alt="${item.title}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #E2E8F0;">`
+        const fallbackImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
+        let resolvedSrc = '';
+        if (item.image) {
+            resolvedSrc = typeof window.resolveImageUrl === 'function'
+                ? window.resolveImageUrl(item.image)
+                : (item.image.startsWith('http') ? item.image : 'uploads/' + item.image.replace(/^uploads\//i, ''));
+        }
+        const imgTag = resolvedSrc
+            ? `<img src="${resolvedSrc}" alt="${item.title}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #E2E8F0;" onerror="this.onerror=null;this.src='${fallbackImg}';">`
             : `<div style="width:54px;height:54px;background:#F1F5F9;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;">${item.cat_icon ? ('<i class="bi ' + item.cat_icon + ' text-secondary fs-4"></i>') : '<i class="bi bi-box text-secondary fs-4"></i>'}</div>`;
 
         rowsHtml += `

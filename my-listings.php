@@ -71,7 +71,7 @@ include 'includes/header.php';
     <div class="row g-3">
         <?php while ($p = $products->fetch_assoc()):
             $cleanTitle = htmlspecialchars($p['title']);
-            $imgSrc = !empty($p['image']) ? 'uploads/' . htmlspecialchars($p['image']) : '';
+            $imgSrc = getProductImageUrl($p['image'] ?? '');
             $location = htmlspecialchars($p['region'] ?? 'Greater Accra Region');
         ?>
         <div class="col-12">
@@ -79,7 +79,7 @@ include 'includes/header.php';
                 <!-- Image Thumbnail -->
                 <div style="width:76px;height:76px;border-radius:12px;background:#f1f5f9;display:flex;align-items:center;justify-content:center;font-size:32px;overflow:hidden;flex-shrink:0;border:1px solid #e2e8f0;">
                     <?php if ($imgSrc): ?>
-                        <img src="<?= $imgSrc ?>" alt="<?= $cleanTitle ?>" style="width:100%;height:100%;object-fit:cover;">
+                        <img src="<?= $imgSrc ?>" alt="<?= $cleanTitle ?>" style="width:100%;height:100%;object-fit:cover;" onerror="this.onerror=null; this.src='<?= DEFAULT_PRODUCT_FALLBACK_IMAGE ?>';">
                     <?php else: ?>
                         <i class="bi <?= htmlspecialchars($p['cat_icon']) ?> text-secondary"></i>
                     <?php endif; ?>

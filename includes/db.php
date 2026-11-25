@@ -318,13 +318,59 @@ function getAvatar($name) {
     return $initials;
 }
 
+// ── Default Fallback Assets ──────────────────────────────────
+define('DEFAULT_PRODUCT_FALLBACK_IMAGE', 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80');
+
+/**
+ * Resolves product image paths into valid web URLs.
+ * Handles full external URLs (Unsplash/CDN), data URIs, and uploaded filenames
+ * while stripping duplicate 'uploads/' prefixes.
+ */
+function getProductImageUrl($image) {
+    if (empty($image) || !is_string($image)) {
+        return DEFAULT_PRODUCT_FALLBACK_IMAGE;
+    }
+    $image = trim($image);
+    if ($image === '') {
+        return DEFAULT_PRODUCT_FALLBACK_IMAGE;
+    }
+
+    // Direct HTTP/HTTPS URL or Data URI
+    if (preg_match('#^https?://#i', $image) || strpos($image, 'data:image/') === 0) {
+        return $image;
+    }
+
+    // Strip leading slashes and duplicate 'uploads/' prefixes
+    $clean = ltrim($image, '/\\');
+    while (stripos($clean, 'uploads/') === 0 || stripos($clean, 'uploads\\') === 0) {
+        $clean = substr($clean, 8);
+    }
+
+    if (empty($clean)) {
+        return DEFAULT_PRODUCT_FALLBACK_IMAGE;
+    }
+
+    if (preg_match('#^https?://#i', $clean)) {
+        return $clean;
+    }
+
+    return 'uploads/' . $clean;
+}
+
 // ── Chat Permissions Helper ──────────────────────────────────
-function canAccessProductChat($conn, $product_id, $user_id, $other_user_id, $is_admin) {
+function canAccessProductChat($conn, $product_id, $user_id, $other_user_id, $is_admin = false) {
+    $product_id = (int)$product_id;
+    $user_id = (int)$user_id;
+    $other_user_id = (int)$other_user_id;
+
     if ($product_id < 1 || $user_id < 1 || $other_user_id < 1 || $user_id === $other_user_id) {
         return false;
     }
 
     $product_stmt = $conn->prepare("SELECT seller_id FROM products WHERE id=?");
+    if (!$product_stmt) {
+        return false;
+    }
     $product_stmt->bind_param("i", $product_id);
     $product_stmt->execute();
     $product = $product_stmt->get_result()->fetch_assoc();
@@ -332,7 +378,18 @@ function canAccessProductChat($conn, $product_id, $user_id, $other_user_id, $is_
         return false;
     }
 
+    $seller_id = (int) $product['seller_id'];
+
+    // Direct Buyer-to-Seller Communication:
+    // If one of the participants is the owner/seller of the listing, chat is ALWAYS allowed
+    if ($seller_id === $user_id || $seller_id === $other_user_id) {
+        return true;
+    }
+
     $other_stmt = $conn->prepare("SELECT is_admin FROM users WHERE id=?");
+    if (!$other_stmt) {
+        return false;
+    }
     $other_stmt->bind_param("i", $other_user_id);
     $other_stmt->execute();
     $other_user = $other_stmt->get_result()->fetch_assoc();
@@ -340,8 +397,9 @@ function canAccessProductChat($conn, $product_id, $user_id, $other_user_id, $is_
         return false;
     }
 
+    // Admin mediator access:
     if ($is_admin) {
-        if ($other_user['is_admin']) {
+        if (!empty($other_user['is_admin'])) {
             return false;
         }
 
@@ -352,11 +410,11 @@ function canAccessProductChat($conn, $product_id, $user_id, $other_user_id, $is_
         ");
         $history_stmt->bind_param("iii", $product_id, $other_user_id, $other_user_id);
         $history_stmt->execute();
-        return (int) $product['seller_id'] === $other_user_id
-            || $history_stmt->get_result()->num_rows > 0;
+        return $history_stmt->get_result()->num_rows > 0;
     }
 
-    if ($other_user['is_admin']) {
+    // Customer chatting with an admin support representative:
+    if (!empty($other_user['is_admin'])) {
         $history_stmt = $conn->prepare("
             SELECT id FROM messages
             WHERE product_id=? AND
@@ -368,8 +426,7 @@ function canAccessProductChat($conn, $product_id, $user_id, $other_user_id, $is_
         return $history_stmt->get_result()->num_rows > 0;
     }
 
-    return (int) $product['seller_id'] === $user_id
-        || (int) $product['seller_id'] === $other_user_id;
+    return false;
 }
 
 // ── File Upload Helper ───────────────────────────────────────

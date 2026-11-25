@@ -35,8 +35,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (empty($title) || $price <= 0 || empty($cat_id) || empty($condition)) {
         $error = 'Please fill in all required fields marked with an asterisk (*).';
     } else {
-        // Handle product photo upload
+        // Handle product photo upload or direct image URL
         $image_name = null;
+        if (!empty($_POST['image_url'])) {
+            $image_name = sanitize(trim($_POST['image_url']));
+        }
         if (!empty($_FILES['product_image']['name'])) {
             $upload = storeImageUpload($_FILES['product_image'], 'product_', 5 * 1024 * 1024);
             if ($upload['error']) {
@@ -133,6 +136,11 @@ include 'includes/header.php';
                     </div>
                 </div>
                 <input type="file" id="product_image" name="product_image" accept="image/*" class="d-none">
+                <div class="mt-2 text-start">
+                    <input type="url" name="image_url" class="form-control um-input" style="font-size:13px;"
+                           placeholder="Or paste direct image URL (optional e.g. https://...)"
+                           value="<?= isset($_POST['image_url']) ? htmlspecialchars($_POST['image_url']) : '' ?>">
+                </div>
             </div>
 
             <!-- Item Title -->

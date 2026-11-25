@@ -54,7 +54,7 @@ include 'includes/header.php';
             $cleanTitle = htmlspecialchars($p['title']);
             $cleanSeller = htmlspecialchars($p['seller_name']);
             $cleanRegion = htmlspecialchars($p['region'] ?? 'Greater Accra Region');
-            $imgSrc = !empty($p['image']) ? 'uploads/' . htmlspecialchars($p['image']) : '';
+            $imgSrc = getProductImageUrl($p['image'] ?? '');
         ?>
         <div class="col-6 col-md-4 col-lg-3 product-card-wrap">
             <div class="um-product-card">
@@ -62,7 +62,7 @@ include 'includes/header.php';
                 <div class="product-thumb-container">
                     <a href="product.php?id=<?= $p['id'] ?>" class="w-100 h-100 d-flex align-items-center justify-content-center">
                         <?php if ($imgSrc): ?>
-                            <img src="<?= $imgSrc ?>" alt="<?= $cleanTitle ?>">
+                            <img src="<?= $imgSrc ?>" alt="<?= $cleanTitle ?>" onerror="this.onerror=null; this.src='<?= DEFAULT_PRODUCT_FALLBACK_IMAGE ?>';">
                         <?php else: ?>
                             <div class="product-thumb-fallback"><i class="bi <?= htmlspecialchars($p['cat_icon']) ?> text-secondary fs-3"></i></div>
                         <?php endif; ?>

@@ -7,10 +7,11 @@ $uid = $_SESSION['user_id'];
 // Handle sending message
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $product_id  = intval($_POST['product_id'] ?? 0);
-    $receiver_id = intval($_POST['receiver_id'] ?? 0);
+    $receiver_id = intval($_POST['receiver_id'] ?? ($_POST['seller_id'] ?? 0));
     $message     = is_string($_POST['message'] ?? null) ? trim($_POST['message']) : '';
-    $request_token = is_string($_POST['request_token'] ?? null) ? $_POST['request_token'] : '';
-    $is_ajax     = ($_POST['ajax'] ?? '') === '1';
+    $request_token = is_string($_POST['request_token'] ?? null) ? trim($_POST['request_token']) : '';
+    $is_ajax     = (isset($_POST['ajax']) && $_POST['ajax'] === '1')
+                   || (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower($_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest');
 
     $_SESSION['sent_chat_tokens'] = $_SESSION['sent_chat_tokens'] ?? [];
     $_SESSION['sent_chat_tokens'] = array_filter(
@@ -18,28 +19,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         static function ($sent_at) { return $sent_at > time() - 3600; }
     );
     $valid_token = preg_match('/^[a-f0-9]{32}$/', $request_token) === 1;
-    $sent = $valid_token && isset($_SESSION['sent_chat_tokens'][$request_token]);
+    $already_sent = $valid_token && isset($_SESSION['sent_chat_tokens'][$request_token]);
+    $sent = false;
 
-    if (!$sent && $valid_token && $message !== '' && $product_id > 0 && $receiver_id > 0 && $receiver_id !== $uid) {
+    if (!$already_sent && $message !== '' && $product_id > 0 && $receiver_id > 0 && $receiver_id !== (int)$uid) {
         if (canAccessProductChat($conn, $product_id, (int) $uid, $receiver_id, !empty($_SESSION['is_admin']))) {
             $stmt = $conn->prepare("INSERT INTO messages (product_id, sender_id, receiver_id, message) VALUES (?,?,?,?)");
-            $stmt->bind_param("iiis", $product_id, $uid, $receiver_id, $message);
-            $sent = $stmt->execute();
-            if ($sent) {
-                $_SESSION['sent_chat_tokens'][$request_token] = time();
+            if ($stmt) {
+                $stmt->bind_param("iiis", $product_id, $uid, $receiver_id, $message);
+                $sent = $stmt->execute();
+                if ($sent && $valid_token) {
+                    $_SESSION['sent_chat_tokens'][$request_token] = time();
+                }
             }
         }
-    } else {
-        $sent = (bool) $sent;
     }
 
     if ($is_ajax) {
         header('Content-Type: application/json; charset=utf-8');
         if (!$sent) {
             http_response_code(422);
-            echo json_encode(['status' => 'error', 'message' => 'Could not send message. Check the conversation and try again.']);
+            echo json_encode(['status' => 'error', 'message' => 'Could not send message. Check conversation and try again.']);
         } else {
-            echo json_encode(['status' => 'ok', 'request_token' => bin2hex(random_bytes(16))]);
+            $new_token = bin2hex(random_bytes(16));
+            echo json_encode([
+                'status' => 'ok',
+                'request_token' => $new_token,
+                'message' => [
+                    'id' => $conn->insert_id,
+                    'product_id' => $product_id,
+                    'sender_id' => $uid,
+                    'receiver_id' => $receiver_id,
+                    'message' => $message,
+                    'created_at' => date('Y-m-d H:i:s'),
+                    'time_ago' => 'Just now'
+                ]
+            ]);
         }
         exit();
     }
@@ -50,7 +65,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 // Get active chat params
 $active_product_id  = intval($_GET['product_id'] ?? 0);
-$active_receiver_id = intval($_GET['seller_id'] ?? 0);
+$active_receiver_id = intval($_GET['seller_id'] ?? ($_GET['receiver_id'] ?? ($_GET['user_id'] ?? 0)));
 $chat_request_token = bin2hex(random_bytes(16));
 
 // Get all conversation threads for this user
@@ -141,7 +156,7 @@ include 'includes/header.php';
                    class="chat-thread text-decoration-none <?= $is_active ? 'active' : '' ?>">
                     <div class="seller-avatar" style="width:42px;height:42px;font-size:14px;flex-shrink:0;">
                         <?php if ($thread['other_avatar']): ?>
-                            <img src="uploads/<?= $thread['other_avatar'] ?>" alt="">
+                            <img src="<?= getProductImageUrl($thread['other_avatar']) ?>" alt="" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($thread['other_name']) ?>&background=0F172A&color=fff';">
                         <?php else: ?>
                             <?= getAvatar($thread['other_name']) ?>
                         <?php endif; ?>
@@ -175,8 +190,8 @@ include 'includes/header.php';
                     <!-- Chat Header -->
                     <div class="d-flex align-items-center gap-3 p-3" style="border-bottom:1.5px solid var(--border);">
                         <div class="seller-avatar" style="width:42px;height:42px;font-size:14px;">
-                            <?php if ($active_receiver['avatar']): ?>
-                                <img src="uploads/<?= $active_receiver['avatar'] ?>" alt="">
+                            <?php if (!empty($active_receiver['avatar'])): ?>
+                                <img src="<?= getProductImageUrl($active_receiver['avatar']) ?>" alt="" onerror="this.onerror=null; this.src='https://ui-avatars.com/api/?name=<?= urlencode($active_receiver['full_name']) ?>&background=0F172A&color=fff';">
                             <?php else: ?>
                                 <?= getAvatar($active_receiver['full_name']) ?>
                             <?php endif; ?>

@@ -302,8 +302,14 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <div style="width:44px;height:44px;background:#F1F5F9;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);flex-shrink:0;">
-                                    <?php if ($p['image']): ?>
-                                        <img src="<?= htmlspecialchars($p['image']) ?>" alt="" style="width:100%;height:100%;object-fit:cover;">
+                                    <?php 
+                                        $adminImg = getProductImageUrl($p['image'] ?? '');
+                                        if ($adminImg && !preg_match('#^https?://#i', $adminImg) && strpos($adminImg, '/') !== 0) {
+                                            $adminImg = '../' . $adminImg;
+                                        }
+                                    ?>
+                                    <?php if ($adminImg): ?>
+                                        <img src="<?= htmlspecialchars($adminImg) ?>" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.onerror=null; this.src='<?= DEFAULT_PRODUCT_FALLBACK_IMAGE ?>';">
                                     <?php else: ?>
                                         <i class="bi <?= htmlspecialchars($p['cat_icon'] ?? 'bi-box') ?> text-muted p-2 d-block"></i>
                                     <?php endif; ?>

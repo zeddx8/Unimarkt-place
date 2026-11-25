@@ -12,6 +12,20 @@ window.formatGHS = function (amount) {
     });
 };
 
+// ── Centralized Product Image URL Resolver ───────────────────
+window.resolveImageUrl = function (img) {
+    if (!img || typeof img !== 'string') return '';
+    img = img.trim();
+    if (img.startsWith('http://') || img.startsWith('https://') || img.startsWith('data:')) {
+        return img;
+    }
+    let clean = img.replace(/^[\/\\]+/, '');
+    while (clean.toLowerCase().startsWith('uploads/') || clean.toLowerCase().startsWith('uploads\\')) {
+        clean = clean.substring(8);
+    }
+    return clean ? ('uploads/' + clean) : '';
+};
+
 // ── Toast Notification System ────────────────────────────────
 window.showToast = function (message, type = 'success') {
     let container = document.getElementById('umToastStack');
@@ -171,9 +185,16 @@ window.UniCart = {
         }
 
         let html = '';
+        const fallbackImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
         items.forEach(item => {
-            const imgTag = item.image
-                ? `<img src="uploads/${item.image}" alt="${item.title}" class="cart-item-thumb">`
+            let resolvedSrc = '';
+            if (item.image) {
+                resolvedSrc = typeof window.resolveImageUrl === 'function'
+                    ? window.resolveImageUrl(item.image)
+                    : (item.image.startsWith('http') ? item.image : 'uploads/' + item.image.replace(/^uploads\//i, ''));
+            }
+            const imgTag = resolvedSrc
+                ? `<img src="${resolvedSrc}" alt="${item.title}" class="cart-item-thumb" onerror="this.onerror=null;this.src='${fallbackImg}';">`
                 : `<div class="cart-item-thumb d-flex align-items-center justify-content-center fs-3">${item.cat_icon}</div>`;
 
             html += `
@@ -337,4 +358,118 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    // ── Live Chat Session Controller ──────────────────────────
+    const chatForm = document.getElementById('chatMsgForm');
+    const chatBox = document.getElementById('chatMessages');
+    if (chatForm && chatBox) {
+        const scrollToBottom = () => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        };
+        // Initial scroll down to latest message
+        scrollToBottom();
+
+        const chatEndpoint = chatForm.dataset.chatEndpoint || 'chat.php';
+        const fetchEndpoint = chatForm.dataset.fetchEndpoint || 'chat-fetch.php';
+        const productId = chatForm.dataset.product || '';
+        const receiverId = chatForm.dataset.receiver || '';
+        const messageInput = chatForm.querySelector('input[name="message"]');
+        const tokenInput = chatForm.querySelector('input[name="request_token"]');
+        const submitBtn = chatForm.querySelector('button[type="submit"]');
+
+        const escapeHtml = (text) => {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        };
+
+        // Send Message via AJAX
+        chatForm.addEventListener('submit', function (e) {
+            e.preventDefault();
+            const msg = (messageInput.value || '').trim();
+            if (!msg) return;
+
+            const formData = new FormData(chatForm);
+            formData.set('ajax', '1');
+
+            // Immediate optimistic UI append
+            const tempBubble = document.createElement('div');
+            tempBubble.className = 'd-flex justify-content-end';
+            tempBubble.innerHTML = `
+                <div class="msg-bubble msg-me">
+                    ${escapeHtml(msg).replace(/\n/g, '<br>')}
+                    <div style="font-size:10px;opacity:.6;margin-top:4px;text-align:right;">Just now</div>
+                </div>
+            `;
+            // Remove empty notice if present
+            const emptyNotice = chatBox.querySelector('.text-center.text-muted');
+            if (emptyNotice) emptyNotice.remove();
+
+            chatBox.appendChild(tempBubble);
+            scrollToBottom();
+
+            messageInput.value = '';
+            messageInput.focus();
+            if (submitBtn) submitBtn.disabled = true;
+
+            fetch(chatEndpoint, {
+                method: 'POST',
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest'
+                },
+                body: formData
+            })
+            .then(res => {
+                if (!res.ok) {
+                    throw new Error('Message send failed (' + res.status + ')');
+                }
+                return res.json();
+            })
+            .then(data => {
+                if (data && data.request_token && tokenInput) {
+                    tokenInput.value = data.request_token;
+                }
+            })
+            .catch(err => {
+                console.error('Chat error:', err);
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Could not send message. Please retry.', 'error');
+                }
+            })
+            .finally(() => {
+                if (submitBtn) submitBtn.disabled = false;
+            });
+        });
+
+        // Realtime Polling for incoming messages every 3 seconds
+        let isFetching = false;
+        let lastHtml = chatBox.innerHTML;
+        setInterval(() => {
+            if (isFetching || !productId || !receiverId) return;
+            isFetching = true;
+
+            const url = `${fetchEndpoint}?product_id=${encodeURIComponent(productId)}&receiver_id=${encodeURIComponent(receiverId)}`;
+            fetch(url, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' }
+            })
+            .then(res => {
+                if (!res.ok) throw new Error('Fetch failed');
+                return res.text();
+            })
+            .then(html => {
+                if (html && html.trim() && html !== lastHtml) {
+                    const isNearBottom = (chatBox.scrollHeight - chatBox.scrollTop - chatBox.clientHeight) < 80;
+                    chatBox.innerHTML = html;
+                    lastHtml = html;
+                    if (isNearBottom) {
+                        scrollToBottom();
+                    }
+                }
+            })
+            .catch(() => {})
+            .finally(() => {
+                isFetching = false;
+            });
+        }, 3000);
+    }
 });

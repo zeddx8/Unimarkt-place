@@ -108,7 +108,7 @@ include 'includes/header.php';
                     <span style="color:#F59E0B;font-size:0.86em;font-weight:700;">Across Ghanaian Campuses</span>
                 </h1>
                 <p class="hero-subtext">
-                    Shop student-founded brands, custom streetwear, tech gadgets, hostel essentials, books, snacks, and creative campus services from verified student entrepreneurs at CCTU, UCC ,Legon, KNUST, UPSA, and nationwide.
+                    Shop student-founded brands, custom streetwear, tech gadgets, hostel essentials, books, snacks, and creative campus services from verified student entrepreneurs at CCTU, UCC, Legon, KNUST, UPSA, and nationwide.
                 </p>
 
                 <!-- Search Bar with Region / Campus Selector -->
@@ -307,7 +307,7 @@ include 'includes/header.php';
             $cleanRegion = htmlspecialchars($p['region'] ?? 'Ghana Campus');
             $ratingVal = number_format((float)($p['rating'] ?? 4.8), 1);
             $reviewsCount = (int)($p['reviews_count'] ?? 18);
-            $imgSrc = !empty($p['image']) ? 'uploads/' . htmlspecialchars($p['image']) : '';
+            $imgSrc = getProductImageUrl($p['image'] ?? '');
         ?>
         <div class="col-6 col-md-4 col-lg-3 product-grid-item"
              data-title="<?= strtolower($cleanTitle) ?>"
@@ -320,7 +320,7 @@ include 'includes/header.php';
                 <div class="card-media-box">
                     <a href="product.php?id=<?= $p['id'] ?>" class="w-100 h-100 d-flex align-items-center justify-content-center">
                         <?php if ($imgSrc): ?>
-                            <img src="<?= $imgSrc ?>" alt="<?= $cleanTitle ?>" loading="lazy">
+                            <img src="<?= $imgSrc ?>" alt="<?= $cleanTitle ?>" loading="lazy" onerror="this.onerror=null; this.src='<?= DEFAULT_PRODUCT_FALLBACK_IMAGE ?>';">
                         <?php else: ?>
                             <div class="card-media-placeholder"><i class="bi <?= htmlspecialchars($p['cat_icon']) ?> fs-1 text-secondary"></i></div>
                         <?php endif; ?>
@@ -330,9 +330,6 @@ include 'includes/header.php';
                     <div class="card-floating-tags">
                         <span class="badge-tag badge-tag-condition">
                             <i class="bi bi-mortarboard-fill me-1"></i><?= htmlspecialchars($p['condition_type']) ?>
-                        </span>
-                        <span class="badge-tag badge-tag-region" title="<?= $cleanRegion ?>">
-                            <i class="bi bi-geo-alt-fill me-1"></i><?= $cleanRegion ?>
                         </span>
                     </div>
 

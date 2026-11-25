@@ -88,8 +88,11 @@ include 'includes/header.php';
             <!-- Product Media Viewport -->
             <div class="um-card overflow-hidden mb-4 p-0">
                 <div class="card-media-box" style="height:380px;background:#f8fafc;">
+                    <?php 
+                        $pImg = getProductImageUrl($p['image'] ?? '');
+                    ?>
                     <?php if (!empty($p['image'])): ?>
-                        <img src="uploads/<?= htmlspecialchars($p['image']) ?>" alt="<?= $cleanTitle ?>" style="object-fit:contain;background:#fff;">
+                        <img src="<?= $pImg ?>" alt="<?= $cleanTitle ?>" style="object-fit:contain;background:#fff;" onerror="this.onerror=null; this.src='<?= DEFAULT_PRODUCT_FALLBACK_IMAGE ?>';">
                     <?php else: ?>
                         <div class="card-media-placeholder" style="font-size:96px;"><i class="bi <?= htmlspecialchars($p['cat_icon']) ?> text-secondary"></i></div>
                     <?php endif; ?>
@@ -139,12 +142,9 @@ include 'includes/header.php';
                 </div>
 
                 <!-- Attributes Row -->
-                <div class="d-flex flex-wrap gap-2 mb-4 pb-3 border-bottom">
+                <div class="d-flex flex-wrap gap-2 mb-3 pb-3 border-bottom">
                     <span class="badge-tag badge-tag-condition px-3 py-2 fs-6">
                         <i class="bi bi-mortarboard-fill me-1"></i><?= htmlspecialchars($p['condition_type']) ?>
-                    </span>
-                    <span class="badge bg-light text-dark border px-3 py-2 fw-semibold d-inline-flex align-items-center">
-                        <i class="bi bi-geo-alt-fill text-danger me-1"></i> Campus: <?= $cleanRegion ?>
                     </span>
                     <span class="badge bg-light text-muted border px-3 py-2 fw-normal d-inline-flex align-items-center">
                         <i class="bi bi-eye me-1"></i> <?= (int)$p['views'] + 1 ?> views
@@ -152,6 +152,16 @@ include 'includes/header.php';
                     <span class="badge bg-light text-muted border px-3 py-2 fw-normal d-inline-flex align-items-center">
                         <i class="bi bi-buildings text-success me-1"></i> Campus & Doorstep Delivery
                     </span>
+                </div>
+
+                <!-- Seller Campus & Location Highlight (Exclusive to Product Details) -->
+                <div class="p-3 mb-4 rounded-3 d-flex align-items-center gap-3" style="background:#FFF7ED;border:1.5px solid #FED7AA;">
+                    <div style="font-size:26px;color:#EA580C;"><i class="bi bi-geo-alt-fill"></i></div>
+                    <div>
+                        <div class="small text-uppercase fw-bold text-muted" style="letter-spacing:0.5px;">Campus Location</div>
+                        <div class="fs-6 fw-bold text-dark"><?= $cleanRegion ?></div>
+                        <div class="small text-muted">Available for verified direct campus pickup or student delivery</div>
+                    </div>
                 </div>
 
                 <!-- Detailed Description -->
@@ -301,14 +311,14 @@ include 'includes/header.php';
         <div class="row g-3 g-md-4">
             <?php while ($o = $others->fetch_assoc()):
                 $oTitle = htmlspecialchars($o['title']);
-                $oImg = !empty($o['image']) ? 'uploads/' . htmlspecialchars($o['image']) : '';
+                $oImg = getProductImageUrl($o['image'] ?? '');
             ?>
             <div class="col-6 col-md-3">
                 <div class="um-card h-100">
                     <div class="card-media-box">
                         <a href="product.php?id=<?= $o['id'] ?>" class="w-100 h-100 d-flex align-items-center justify-content-center">
                             <?php if ($oImg): ?>
-                                <img src="<?= $oImg ?>" alt="<?= $oTitle ?>">
+                                <img src="<?= $oImg ?>" alt="<?= $oTitle ?>" onerror="this.onerror=null; this.src='<?= DEFAULT_PRODUCT_FALLBACK_IMAGE ?>';">
                             <?php else: ?>
                                 <div class="card-media-placeholder fs-2"><i class="bi <?= htmlspecialchars($o['cat_icon']) ?> text-secondary"></i></div>
                             <?php endif; ?>
