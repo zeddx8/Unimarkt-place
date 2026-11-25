@@ -240,6 +240,39 @@ window.UniCart = {
 // ── DOM Initialization ───────────────────────────────────────
 document.addEventListener('DOMContentLoaded', function () {
 
+    // Theme Toggle (Light / Dark)
+    const themeBtn = document.getElementById('themeToggleBtn');
+    const themeIcon = document.getElementById('themeToggleIcon');
+    const syncThemeIcon = () => {
+        if (!themeIcon) return;
+        const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+        themeIcon.className = isDark ? 'bi bi-sun-fill text-warning' : 'bi bi-moon-stars';
+    };
+    syncThemeIcon();
+    if (themeBtn) {
+        themeBtn.addEventListener('click', function () {
+            const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+            if (isDark) {
+                document.documentElement.removeAttribute('data-theme');
+                try { localStorage.setItem('unimarket_theme', 'light'); } catch (e) {}
+            } else {
+                document.documentElement.setAttribute('data-theme', 'dark');
+                try { localStorage.setItem('unimarket_theme', 'dark'); } catch (e) {}
+            }
+            syncThemeIcon();
+        });
+    }
+
+    // Mobile Bottom Search Focus
+    document.getElementById('mobileBottomSearchBtn')?.addEventListener('click', function (e) {
+        const searchEl = document.getElementById('liveSearch');
+        if (searchEl) {
+            e.preventDefault();
+            searchEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            setTimeout(() => searchEl.focus(), 250);
+        }
+    });
+
     UniCart.updateNavBadge();
     UniCart.renderDrawer();
 

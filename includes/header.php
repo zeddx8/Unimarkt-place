@@ -47,6 +47,15 @@ if (isLoggedIn()) {
 
     <!-- Design System Stylesheet -->
     <link href="css/style.css?v=<?= @filemtime(__DIR__ . '/../css/style.css') ?: '2' ?>" rel="stylesheet">
+    <script>
+        (function () {
+            try {
+                if (localStorage.getItem('unimarket_theme') === 'dark') {
+                    document.documentElement.setAttribute('data-theme', 'dark');
+                }
+            } catch (e) {}
+        })();
+    </script>
 </head>
 <body>
 
@@ -94,6 +103,11 @@ if (isLoggedIn()) {
 
             <!-- Right Action Stack -->
             <div class="d-flex align-items-center gap-2 ms-auto">
+                <!-- Dark/Light Theme Toggle -->
+                <button type="button" id="themeToggleBtn" class="header-action-btn" title="Toggle Dark / Light Mode" aria-label="Toggle theme">
+                    <i class="bi bi-moon-stars" id="themeToggleIcon"></i>
+                </button>
+
                 <!-- Wishlist -->
                 <a href="wishlist.php" class="header-action-btn <?= $current_page=='wishlist.php'?'active':'' ?>" title="Saved Items">
                     <i class="bi bi-heart"></i>

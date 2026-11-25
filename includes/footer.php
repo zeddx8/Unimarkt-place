@@ -162,6 +162,33 @@
         </div>
     </div>
 </footer>
+
+<!-- ── STICKY MOBILE BOTTOM NAVIGATION BAR (< md) ─────────────── -->
+<nav class="um-mobile-bottom-nav d-md-none" aria-label="Mobile Navigation">
+    <a href="dashboard.php" class="um-bottom-nav-item <?= $current_page === 'dashboard.php' ? 'active' : '' ?>">
+        <i class="bi bi-house-door<?= $current_page === 'dashboard.php' ? '-fill' : '' ?>"></i>
+        <span>Home</span>
+    </a>
+    <a href="dashboard.php#liveSearch" class="um-bottom-nav-item" id="mobileBottomSearchBtn">
+        <i class="bi bi-search"></i>
+        <span>Search</span>
+    </a>
+    <a href="post.php" class="um-bottom-nav-item <?= $current_page === 'post.php' ? 'active' : '' ?>">
+        <span class="um-bottom-nav-sell"><i class="bi bi-plus-lg"></i></span>
+        <span>Sell</span>
+    </a>
+    <a href="chat.php" class="um-bottom-nav-item <?= $current_page === 'chat.php' ? 'active' : '' ?>">
+        <i class="bi bi-chat-dots<?= $current_page === 'chat.php' ? '-fill' : '' ?>"></i>
+        <span>Messages</span>
+        <?php if (!empty($unread_messages) && $unread_messages > 0): ?>
+            <span class="um-bottom-badge"><?= (int)$unread_messages ?></span>
+        <?php endif; ?>
+    </a>
+    <a href="orders.php" class="um-bottom-nav-item <?= ($current_page === 'orders.php' || $current_page === 'profile.php') ? 'active' : '' ?>">
+        <i class="bi bi-bag-check<?= ($current_page === 'orders.php' || $current_page === 'profile.php') ? '-fill' : '' ?>"></i>
+        <span>Orders</span>
+    </a>
+</nav>
 <?php endif; ?>
 
 <!-- Bootstrap 5 JavaScript Bundle -->
