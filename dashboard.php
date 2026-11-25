@@ -104,7 +104,7 @@ include 'includes/header.php';
                 </div>
                 <h1 class="hero-main-title">
                     <span style="color:#FFFFFF;">Discover &amp; Support</span>
-                    <span style="color:#EA580C;">Student Entrepreneurs</span><br>
+                    <span style="color:#60A5FA;">Student Entrepreneurs</span><br>
                     <span style="color:#F59E0B;font-size:0.86em;font-weight:700;">Across Ghanaian Campuses</span>
                 </h1>
                 <p class="hero-subtext">

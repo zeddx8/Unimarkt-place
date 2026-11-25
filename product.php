@@ -157,8 +157,8 @@ include 'includes/header.php';
                 </div>
 
                 <!-- Seller Campus & Location Highlight (Exclusive to Product Details) -->
-                <div class="p-3 mb-4 rounded-3 d-flex align-items-center gap-3" style="background:#FFF7ED;border:1.5px solid #FED7AA;">
-                    <div style="font-size:26px;color:#EA580C;"><i class="bi bi-geo-alt-fill"></i></div>
+                <div class="p-3 mb-4 rounded-3 d-flex align-items-center gap-3" style="background:#EFF6FF;border:1.5px solid #BFDBFE;">
+                    <div style="font-size:26px;color:#2563EB;"><i class="bi bi-geo-alt-fill"></i></div>
                     <div>
                         <div class="small text-uppercase fw-bold text-muted" style="letter-spacing:0.5px;">Campus Location</div>
                         <div class="fs-6 fw-bold text-dark"><?= $cleanRegion ?></div>

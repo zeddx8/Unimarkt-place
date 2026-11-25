@@ -62,14 +62,14 @@ if (!$conn || $conn->connect_error) {
         <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;600;700&display=swap" rel="stylesheet">
         <style>
             body { font-family: "Plus Jakarta Sans", sans-serif; background: #0F172A; color: #fff; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 20px; }
-            .setup-card { background: #1E293B; border: 1.5px solid #EA580C; border-radius: 20px; max-width: 600px; width: 100%; padding: 36px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
-            .brand-accent { color: #EA580C; }
-            code { background: rgba(0,0,0,0.3); color: #FDBA74; padding: 2px 6px; border-radius: 4px; }
+            .setup-card { background: #1E293B; border: 1.5px solid #2563EB; border-radius: 20px; max-width: 600px; width: 100%; padding: 36px; box-shadow: 0 20px 60px rgba(0,0,0,0.5); }
+            .brand-accent { color: #2563EB; }
+            code { background: rgba(0,0,0,0.3); color: #93C5FD; padding: 2px 6px; border-radius: 4px; }
         </style>
     </head>
     <body>
         <div class="setup-card text-center">
-            <div style="font-size: 48px; margin-bottom: 16px; color: #EA580C;"><i class="bi bi-database-exclamation"></i></div>
+            <div style="font-size: 48px; margin-bottom: 16px; color: #2563EB;"><i class="bi bi-database-exclamation"></i></div>
             <h2 class="fw-bold mb-2">Uni<span class="brand-accent">Market</span> Ghana</h2>
             <h5 class="text-warning mb-3">Database Connection Notice</h5>
             <p class="text-white-50">Could not connect to MySQL database <code>' . DB_NAME . '</code> on <code>' . DB_HOST . '</code>.</p>
@@ -80,7 +80,7 @@ if (!$conn || $conn->connect_error) {
                 2. Run <code>php reset-db.php</code> or import <code>sql/unimarket.sql</code>.<br>
                 3. Update credentials in <code>includes/db.php</code> if your MySQL has a password.
             </div>
-            <a href="' . htmlspecialchars($_SERVER['REQUEST_URI'] ?? 'index.php') . '" class="btn btn-primary px-4 py-2 fw-bold" style="background:#EA580C;border-color:#EA580C;">Retry Connection</a>
+            <a href="' . htmlspecialchars($_SERVER['REQUEST_URI'] ?? 'index.php') . '" class="btn btn-primary px-4 py-2 fw-bold" style="background:#2563EB;border-color:#2563EB;">Retry Connection</a>
         </div>
     </body>
     </html>');

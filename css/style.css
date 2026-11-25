@@ -1,35 +1,35 @@
 /* ════════════════════════════════════════════════════════════
-   UniMarket Ghana — Commercial E-Commerce Design System (Option A)
-   Palette: "Campus Trust & Energy"
-   - Primary Brand: Midnight Slate (#0F172A)
-   - Primary Accent / CTA: Vibrant Orange (#EA580C, hover #C2410C)
-   - Secondary Accent: Emerald Green (#059669) for verified/MoMo escrow
+   UniMarket Ghana — Commercial E-Commerce Design System
+   Palette: "Paystack Clean" (Electric Cobalt + Mint Emerald)
+   - Primary Brand: Deep Obsidian (#0B132B)
+   - Primary Accent / CTA: Electric Cobalt (#2563EB, hover #1D4ED8)
+   - Secondary Accent: Mint Emerald (#10B981) for verified/MoMo escrow
    - Highlights & Ratings: Warm Amber (#F59E0B)
-   - Backgrounds: Cool Off-White (#F8FAFC), Pure White (#FFFFFF)
+   - Backgrounds: Cool Snow (#F8FAFC), Pure White (#FFFFFF)
    - Borders: Crisp Slate Stone (#E2E8F0)
    Typography: Plus Jakarta Sans / Inter
    ZERO EMOJIS — High-Quality Icons & High-Res Photography
    ════════════════════════════════════════════════════════════ */
 
 :root {
-    /* ── Primary Brand: Midnight Slate ── */
-    --brand-slate:       #0F172A;
-    --brand-slate-dark:  #020617;
-    --brand-slate-light: #1E293B;
-    --brand-navy:        #0F172A;
+    /* ── Primary Brand: Deep Obsidian ── */
+    --brand-slate:       #0B132B;
+    --brand-slate-dark:  #050914;
+    --brand-slate-light: #1C2541;
+    --brand-navy:        #0B132B;
 
-    /* ── Primary Accent / Action CTA: Vibrant Orange ── */
-    --accent-orange:       #EA580C;
-    --accent-orange-hover: #C2410C;
-    --accent-orange-light: #FFEDD5;
-    --accent-orange-subtle:#FFF7ED;
+    /* ── Primary Accent / Action CTA: Electric Cobalt ── */
+    --accent-orange:       #2563EB;
+    --accent-orange-hover: #1D4ED8;
+    --accent-orange-light: #DBEAFE;
+    --accent-orange-subtle:#EFF6FF;
     /* Aliased for backward compatibility */
-    --accent-emerald:      #EA580C;
-    --accent-emerald-hover:#C2410C;
+    --accent-emerald:      #2563EB;
+    --accent-emerald-hover:#1D4ED8;
 
-    /* ── Secondary Accent: Emerald Green (Trust/Escrow/Paid) ── */
-    --accent-green:       #059669;
-    --accent-green-hover: #047857;
+    /* ── Secondary Accent: Mint Emerald (Trust/Escrow/Paid) ── */
+    --accent-green:       #10B981;
+    --accent-green-hover: #059669;
     --accent-green-light: #D1FAE5;
     --accent-green-subtle:#ECFDF5;
 
@@ -38,13 +38,13 @@
     --accent-amber-light: #FEF3C7;
 
     /* ── Backgrounds & Surfaces ── */
-    --bg-page:            #F8FAFC; /* Cool Off-White */
+    --bg-page:            #F8FAFC; /* Cool Snow */
     --bg-surface:         #FFFFFF; /* Pure White */
     --bg-subtle:          #F1F5F9;
 
     /* ── Borders & Outlines ── */
     --border-color:       #E2E8F0; /* Crisp 1px Slate Border */
-    --border-focus:       #EA580C;
+    --border-focus:       #2563EB;
 
     /* ── Typography & Content Colors ── */
     --text-primary:       #0F172A;
@@ -334,7 +334,7 @@ a {
     border-radius: var(--radius-full);
     font-size: 12.5px;
     font-weight: 600;
-    color: #FFEDD5;
+    color: #DBEAFE;
     margin-bottom: 16px;
 }
 
@@ -1076,7 +1076,7 @@ a {
 }
 
 .chat-thread.active {
-    background: #FFF7ED;
+    background: #EFF6FF;
     border-left: 3px solid var(--accent-orange);
 }
 
@@ -1272,7 +1272,7 @@ a {
     align-items: center;
     justify-content: center;
     font-size: 22px;
-    box-shadow: 0 4px 12px rgba(234, 88, 12, 0.35);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.35);
     margin-top: -14px;
 }
 
