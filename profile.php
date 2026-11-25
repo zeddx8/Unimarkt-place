@@ -129,9 +129,9 @@ include 'includes/header.php';
 
     <!-- Profile Header Card -->
     <div class="um-product-card p-4 mb-4 d-flex align-items-center gap-4 flex-wrap">
-        <div class="seller-avatar" style="width:84px;height:84px;font-size:32px;flex-shrink:0;">
+        <div class="seller-avatar" style="width:84px;height:84px;font-size:32px;flex-shrink:0;border-radius:50%;overflow:hidden;">
             <?php $avatarUrl = !empty($user['avatar']) ? getProductImageUrl($user['avatar']) : ''; ?>
-            <img class="avatar-preview" src="<?= htmlspecialchars($avatarUrl) ?>" alt="" style="<?= $avatarUrl ? '' : 'display:none;' ?>">
+            <img class="avatar-preview" src="<?= htmlspecialchars($avatarUrl) ?>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;<?= $avatarUrl ? '' : 'display:none;' ?>">
             <span class="avatar-fallback" style="<?= $avatarUrl ? 'display:none;' : '' ?>"><?= getAvatar($user['full_name']) ?></span>
         </div>
         <div class="flex-grow-1">
@@ -180,8 +180,8 @@ include 'includes/header.php';
             <div class="mb-4">
                 <label class="um-label">Profile Photo</label>
                 <div class="d-flex align-items-center gap-3">
-                    <div class="seller-avatar" style="width:60px;height:60px;font-size:22px;">
-                        <img class="avatar-preview" src="<?= htmlspecialchars($avatarUrl) ?>" alt="" style="<?= $avatarUrl ? '' : 'display:none;' ?>">
+                    <div class="seller-avatar" style="width:60px;height:60px;font-size:22px;border-radius:50%;overflow:hidden;flex-shrink:0;">
+                        <img class="avatar-preview" src="<?= htmlspecialchars($avatarUrl) ?>" alt="" style="width:100%;height:100%;object-fit:cover;border-radius:50%;<?= $avatarUrl ? '' : 'display:none;' ?>">
                         <span class="avatar-fallback" style="<?= $avatarUrl ? 'display:none;' : '' ?>"><?= getAvatar($user['full_name']) ?></span>
                     </div>
                     <div>

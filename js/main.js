@@ -351,6 +351,27 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    // Avatar Upload Live Preview (profile.php)
+    const avatarInput = document.getElementById('avatar');
+    if (avatarInput) {
+        avatarInput.addEventListener('change', function () {
+            const file = this.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    document.querySelectorAll('.avatar-preview').forEach(img => {
+                        img.src = e.target.result;
+                        img.style.display = 'block';
+                    });
+                    document.querySelectorAll('.avatar-fallback').forEach(el => {
+                        el.style.display = 'none';
+                    });
+                };
+                reader.readAsDataURL(file);
+            }
+        });
+    }
+
     // Image Upload Previews
     const imgInput = document.getElementById('product_image');
     const imgPreview = document.getElementById('imagePreview');

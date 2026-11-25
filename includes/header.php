@@ -46,7 +46,7 @@ if (isLoggedIn()) {
     <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
     <!-- Design System Stylesheet -->
-    <link href="css/style.css" rel="stylesheet">
+    <link href="css/style.css?v=<?= @filemtime(__DIR__ . '/../css/style.css') ?: '2' ?>" rel="stylesheet">
 </head>
 <body>
 

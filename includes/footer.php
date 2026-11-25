@@ -168,7 +168,7 @@
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 
 <!-- Application Core Scripts -->
-<script src="js/main.js"></script>
+<script src="js/main.js?v=<?= @filemtime(__DIR__ . '/../js/main.js') ?: '2' ?>"></script>
 
 </body>
 </html>
