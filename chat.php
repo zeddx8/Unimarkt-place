@@ -146,7 +146,7 @@ include 'includes/header.php';
     </div>
 
     <div class="um-card overflow-hidden">
-        <div class="row g-0" style="min-height:600px;">
+        <div class="row g-0 chat-shell-row">
 
             <!-- ── Thread List ── -->
             <div class="col-md-4 chat-sidebar <?= ($active_product && $active_receiver) ? 'd-none d-md-block' : '' ?>">
@@ -191,7 +191,7 @@ include 'includes/header.php';
             </div>
 
             <!-- ── Chat Window ── -->
-            <div class="col-md-8 d-flex flex-column <?= (!$active_product || !$active_receiver) ? 'd-none d-md-flex' : '' ?>" style="border-left:1px solid var(--border-color);">
+            <div class="col-md-8 d-flex flex-column chat-window-col <?= (!$active_product || !$active_receiver) ? 'd-none d-md-flex' : '' ?>" style="border-left:1px solid var(--border-color);">
                 <?php if ($active_product && $active_receiver): ?>
 
                     <!-- Chat Header -->

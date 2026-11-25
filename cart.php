@@ -96,7 +96,7 @@ include 'includes/header.php';
                     <table class="table align-middle mb-0" id="cartTable">
                         <thead class="bg-light text-muted small text-uppercase">
                             <tr>
-                                <th style="min-width:260px;">Product</th>
+                                <th style="min-width:180px;">Product</th>
                                 <th>Unit Price</th>
                                 <th class="text-center">Quantity</th>
                                 <th>Total</th>

@@ -23,7 +23,7 @@ if (isLoggedIn()) {
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="description" content="UniMarket Ghana is Ghana's trusted nationwide online commercial marketplace. Shop electronics, smartphones, fashion, home essentials & appliances with Mobile Money and doorstep delivery.">
     <meta name="author" content="UniMarket Ghana Commercial Retail">

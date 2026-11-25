@@ -69,7 +69,7 @@ if ($r3) $total_orders = (int)$r3->fetch_row()[0];
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <meta name="description" content="Sign in to UniMarket Ghana — The premier marketplace connecting student entrepreneurs, innovators, and campus shoppers across universities in Ghana.">
     <title>Sign In | UniMarket Ghana — Campus Entrepreneurship Platform</title>
 

@@ -192,7 +192,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Products Catalog CRUD | UniMarket Admin</title>
 
     <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23EA580C'%3E%3Cpath d='M16 6V4a4 4 0 0 0-8 0v2H4a1 1 0 0 0-1 1v13a3 3 0 0 0 3 3h12a3 3 0 0 0 3-3V7a1 1 0 0 0-1-1h-4zm-6-2a2 2 0 1 1 4 0v2h-4V4zm9 16a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V8h3v2a1 1 0 1 0 2 0V8h4v2a1 1 0 1 0 2 0V8h3v12z'/%3E%3C/svg%3E">
@@ -248,7 +248,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 
             <form method="GET" class="d-flex gap-2">
                 <input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>">
-                <input type="text" name="q" class="form-control form-control-sm" style="min-width:240px;border-radius:8px;"
+                <input type="text" name="q" class="form-control form-control-sm admin-search-input" style="min-width:240px;border-radius:8px;"
                        placeholder="Search products, seller, region..." value="<?= htmlspecialchars($search) ?>">
                 <button type="submit" class="btn btn-orange btn-sm px-3">
                     <i class="bi bi-search"></i>

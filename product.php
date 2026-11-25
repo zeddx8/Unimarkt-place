@@ -89,7 +89,7 @@ include 'includes/header.php';
         <div class="col-lg-7">
             <!-- Product Media Viewport -->
             <div class="um-card overflow-hidden mb-4 p-0">
-                <div class="card-media-box" style="height:380px;background:#f8fafc;">
+                <div class="card-media-box product-detail-media">
                     <?php 
                         $pImg = getProductImageUrl($p['image'] ?? '');
                     ?>

@@ -86,7 +86,7 @@ include 'includes/header.php';
                 </div>
 
                 <!-- Product Details -->
-                <div class="flex-grow-1" style="min-width:200px;">
+                <div class="flex-grow-1" style="min-width:0;">
                     <a href="product.php?id=<?= $p['id'] ?>" class="fw-bold text-dark d-block text-truncate" style="font-size:15px;max-width:400px;">
                         <?= $cleanTitle ?>
                     </a>

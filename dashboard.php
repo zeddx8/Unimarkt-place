@@ -228,7 +228,7 @@ include 'includes/header.php';
             $baseNoCond   = $_GET; unset($baseNoCond['condition']);
             $baseNoSort   = $_GET; unset($baseNoSort['sort']);
             ?>
-            <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
+            <div class="d-flex align-items-center gap-2 ms-auto flex-wrap filter-scroll-row">
                 <!-- Campus Filter Dropdown -->
                 <select class="form-select um-input py-2" style="font-size:13px;width:auto;max-width:220px;"
                         onchange="const u=new URL(location.href); this.value ? u.searchParams.set('region', this.value) : u.searchParams.delete('region'); location=u.toString();">
