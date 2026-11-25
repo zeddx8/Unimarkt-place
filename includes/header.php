@@ -120,7 +120,7 @@ if (isLoggedIn()) {
                 <div class="dropdown ms-1">
                     <button class="header-action-btn border-0 dropdown-toggle p-0 overflow-hidden" data-bs-toggle="dropdown" aria-expanded="false" title="Account Menu">
                         <?php if (!empty($_SESSION['avatar'])): ?>
-                            <img src="<?= htmlspecialchars($_SESSION['avatar']) ?>" alt="<?= sanitize($_SESSION['full_name']) ?>" style="width:100%;height:100%;object-fit:cover;">
+                            <img src="<?= htmlspecialchars(getProductImageUrl($_SESSION['avatar'])) ?>" alt="<?= sanitize($_SESSION['full_name']) ?>" style="width:100%;height:100%;object-fit:cover;" onerror="this.onerror=null; this.style.display='none';">
                         <?php else: ?>
                             <span class="fw-bold" style="font-size:14px;color:var(--brand-slate);"><?= getAvatar($_SESSION['full_name']) ?></span>
                         <?php endif; ?>
@@ -132,6 +132,7 @@ if (isLoggedIn()) {
                             <span class="badge bg-light text-muted border mt-1" style="font-size:10.5px;"><i class="bi bi-mortarboard me-1"></i><?= htmlspecialchars($_SESSION['region'] ?? 'Ghana Campus') ?></span>
                         </li>
                         <li><a class="dropdown-item py-2" href="profile.php"><i class="bi bi-person-badge me-2 text-primary"></i>My Campus Profile & Delivery</a></li>
+                        <li><a class="dropdown-item py-2" href="orders.php"><i class="bi bi-receipt me-2 text-info"></i>My Orders & Tracking</a></li>
                         <li><a class="dropdown-item py-2" href="my-listings.php"><i class="bi bi-rocket-takeoff me-2 text-warning"></i>My Student Venture / Listings</a></li>
                         <li><a class="dropdown-item py-2" href="wishlist.php"><i class="bi bi-heart me-2 text-danger"></i>Saved Items</a></li>
                         <li><a class="dropdown-item py-2" href="cart.php"><i class="bi bi-bag-check me-2 text-success"></i>Cart & Checkout</a></li>

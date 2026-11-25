@@ -128,6 +128,7 @@ if ($conn && !$conn->connect_error) {
         if (!in_array('address', $cols)) {
             @$conn->query("ALTER TABLE users ADD COLUMN address VARCHAR(200) DEFAULT 'Airport Residential, Accra'");
         }
+        @$conn->query("ALTER TABLE users MODIFY COLUMN avatar MEDIUMTEXT DEFAULT NULL");
     }
 
     // Check products table columns
@@ -144,6 +145,7 @@ if ($conn && !$conn->connect_error) {
         if (!in_array('reviews_count', $pcols)) {
             @$conn->query("ALTER TABLE products ADD COLUMN reviews_count INT DEFAULT 18");
         }
+        @$conn->query("ALTER TABLE products MODIFY COLUMN image MEDIUMTEXT DEFAULT NULL");
     }
 
     // Ensure campus & student entrepreneurship categories exist
@@ -189,17 +191,77 @@ function isLoggedIn() {
     return isset($_SESSION['user_id']) && (int)$_SESSION['user_id'] > 0;
 }
 
+function enforceActiveUser($redirectPath = 'index.php') {
+    global $conn;
+    $uid = (int)($_SESSION['user_id'] ?? 0);
+    if ($uid < 1 || !$conn) {
+        return false;
+    }
+    $stmt = $conn->prepare("SELECT is_banned, is_admin FROM users WHERE id = ? LIMIT 1");
+    if (!$stmt) {
+        return true;
+    }
+    $stmt->bind_param("i", $uid);
+    $stmt->execute();
+    $row = $stmt->get_result()->fetch_assoc();
+    if (!$row || !empty($row['is_banned'])) {
+        session_unset();
+        session_destroy();
+        header('Location: ' . $redirectPath . '?banned=1');
+        exit();
+    }
+    $_SESSION['is_admin'] = (int)($row['is_admin'] ?? 0);
+    return true;
+}
+
 function requireLogin() {
     if (!isLoggedIn()) {
         header('Location: index.php');
         exit();
     }
+    enforceActiveUser('index.php');
 }
 
 function requireAdmin() {
     if (!isLoggedIn() || empty($_SESSION['is_admin'])) {
         header('Location: ../admin/login.php');
         exit();
+    }
+    enforceActiveUser('../index.php');
+    if (empty($_SESSION['is_admin'])) {
+        header('Location: ../admin/login.php');
+        exit();
+    }
+}
+
+// ── CSRF Protection Helpers ──────────────────────────────────
+function getCsrfToken() {
+    if (empty($_SESSION['csrf_token']) || !is_string($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+    return $_SESSION['csrf_token'];
+}
+
+function csrfField() {
+    return '<input type="hidden" name="csrf_token" value="' . htmlspecialchars(getCsrfToken(), ENT_QUOTES, 'UTF-8') . '">';
+}
+
+function verifyCsrfToken($token) {
+    if (!is_string($token) || $token === '' || empty($_SESSION['csrf_token'])) {
+        return false;
+    }
+    return hash_equals($_SESSION['csrf_token'], $token);
+}
+
+function requireCsrf($redirectUrl = null) {
+    $token = $_POST['csrf_token'] ?? ($_SERVER['HTTP_X_CSRF_TOKEN'] ?? '');
+    if (!verifyCsrfToken($token)) {
+        if ($redirectUrl) {
+            header('Location: ' . $redirectUrl);
+            exit();
+        }
+        http_response_code(403);
+        exit('Invalid or expired security token. Please refresh and try again.');
     }
 }
 
@@ -357,6 +419,17 @@ function getProductImageUrl($image) {
     return 'uploads/' . $clean;
 }
 
+/**
+ * Resolves product/avatar image URLs for templates inside /admin/.
+ */
+function getAdminImageUrl($image) {
+    $url = getProductImageUrl($image);
+    if ($url && !preg_match('#^https?://#i', $url) && strpos($url, 'data:image/') !== 0 && strpos($url, '/') !== 0) {
+        return '../' . $url;
+    }
+    return $url;
+}
+
 // ── Chat Permissions Helper ──────────────────────────────────
 function canAccessProductChat($conn, $product_id, $user_id, $other_user_id, $is_admin = false) {
     $product_id = (int)$product_id;
@@ -475,14 +548,21 @@ function storeImageUpload($file, $prefix, $max_bytes) {
     }
 
     $upload_dir = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'uploads';
-    if (!is_dir($upload_dir) && !@mkdir($upload_dir, 0755, true) && !is_dir($upload_dir)) {
-        return ['filename' => null, 'error' => 'The uploads directory could not be prepared.'];
-    }
-
+    $dir_ready = is_dir($upload_dir) || @mkdir($upload_dir, 0755, true) || is_dir($upload_dir);
     $filename = $prefix . bin2hex(random_bytes(16)) . '.' . $extensions[$mime_type];
-    if (!move_uploaded_file($temporary_path, $upload_dir . DIRECTORY_SEPARATOR . $filename)) {
-        return ['filename' => null, 'error' => 'The image could not be stored. Please ensure the uploads folder is writable.'];
+
+    if ($dir_ready && is_writable($upload_dir) && @move_uploaded_file($temporary_path, $upload_dir . DIRECTORY_SEPARATOR . $filename)) {
+        return ['filename' => $filename, 'error' => null];
     }
 
-    return ['filename' => $filename, 'error' => null];
+    // Fallback for read-only serverless filesystems (e.g., Vercel): encode as Data URI if <= 1.5MB
+    if ($file_size <= 1572864 && is_readable($temporary_path)) {
+        $raw = @file_get_contents($temporary_path);
+        if ($raw !== false) {
+            $data_uri = 'data:' . $mime_type . ';base64,' . base64_encode($raw);
+            return ['filename' => $data_uri, 'error' => null];
+        }
+    }
+
+    return ['filename' => null, 'error' => 'The image could not be stored. Please ensure the uploads folder is writable or upload an image under 1.5MB.'];
 }

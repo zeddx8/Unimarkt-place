@@ -11,7 +11,7 @@ $page_title = 'My Inventory & Listings | UniMarket Ghana';
 $uid = (int)$_SESSION['user_id'];
 
 $filter = $_GET['filter'] ?? 'all';
-$where  = "p.seller_id = $uid";
+$where  = "p.seller_id = $uid AND p.status != 'removed'";
 if ($filter === 'available') $where .= " AND p.status = 'available'";
 elseif ($filter === 'sold')  $where .= " AND p.status = 'sold'";
 
@@ -21,7 +21,7 @@ $products = $conn->query("
     WHERE $where ORDER BY p.created_at DESC
 ");
 
-$total     = $conn->query("SELECT COUNT(*) FROM products WHERE seller_id=$uid")->fetch_row()[0] ?? 0;
+$total     = $conn->query("SELECT COUNT(*) FROM products WHERE seller_id=$uid AND status!='removed'")->fetch_row()[0] ?? 0;
 $available = $conn->query("SELECT COUNT(*) FROM products WHERE seller_id=$uid AND status='available'")->fetch_row()[0] ?? 0;
 $sold      = $conn->query("SELECT COUNT(*) FROM products WHERE seller_id=$uid AND status='sold'")->fetch_row()[0] ?? 0;
 
@@ -113,18 +113,29 @@ include 'includes/header.php';
                 </div>
 
                 <!-- Action Controls -->
-                <div class="d-flex gap-2 flex-shrink-0 ms-auto">
+                <div class="d-flex gap-2 flex-shrink-0 ms-auto flex-wrap">
                     <a href="product.php?id=<?= $p['id'] ?>" class="btn btn-outline-secondary btn-sm px-3 py-2 fw-semibold" style="border-radius:10px;">
                         View
                     </a>
+                    <a href="edit-product.php?id=<?= $p['id'] ?>" class="btn btn-outline-primary btn-sm px-3 py-2 fw-semibold" style="border-radius:10px;">
+                        Edit
+                    </a>
                     <?php if ($p['status'] === 'available'): ?>
-                    <a href="mark-sold.php?id=<?= $p['id'] ?>" class="btn btn-outline-success btn-sm px-3 py-2 fw-bold mark-sold-btn" style="border-radius:10px;">
-                        Mark Sold
-                    </a>
+                    <form method="POST" action="mark-sold.php" class="d-inline">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                        <button type="submit" class="btn btn-outline-success btn-sm px-3 py-2 fw-bold mark-sold-btn" style="border-radius:10px;">
+                            Mark Sold
+                        </button>
+                    </form>
                     <?php endif; ?>
-                    <a href="delete-product.php?id=<?= $p['id'] ?>" class="btn btn-outline-danger btn-sm px-3 py-2 fw-bold delete-btn" style="border-radius:10px;">
-                        <i class="bi bi-trash3"></i>
-                    </a>
+                    <form method="POST" action="delete-product.php" class="d-inline" onsubmit="return confirm('Remove this listing from inventory?')">
+                        <?= csrfField() ?>
+                        <input type="hidden" name="id" value="<?= (int)$p['id'] ?>">
+                        <button type="submit" class="btn btn-outline-danger btn-sm px-3 py-2 fw-bold delete-btn" style="border-radius:10px;" title="Delete Listing">
+                            <i class="bi bi-trash3"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
         </div>

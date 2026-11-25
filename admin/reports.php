@@ -2,29 +2,40 @@
 require_once '../includes/db.php';
 requireAdmin();
 
-// Resolve a report
-if (isset($_GET['resolve'])) {
-    $rid = intval($_GET['resolve']);
-    $conn->query("UPDATE reports SET status='resolved' WHERE id=$rid");
-    header('Location: reports.php?msg=resolved'); exit();
-}
-
-// Remove reported product
-if (isset($_GET['remove_product'])) {
-    $pid = intval($_GET['remove_product']);
-    $rid = intval($_GET['rid']);
-    $conn->query("UPDATE products SET status='removed' WHERE id=$pid");
-    $conn->query("UPDATE reports SET status='reviewed' WHERE id=$rid");
-    header('Location: reports.php?msg=product_removed'); exit();
+// Handle report moderation via POST + CSRF
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    requireCsrf('reports.php');
+    $filter_redirect = in_array($_POST['filter'] ?? 'pending', ['all', 'pending', 'reviewed', 'resolved'], true) ? $_POST['filter'] : 'pending';
+    if ($_POST['action'] === 'resolve') {
+        $rid = intval($_POST['rid'] ?? 0);
+        if ($rid > 0) {
+            $st = $conn->prepare("UPDATE reports SET status='resolved' WHERE id=?");
+            $st->bind_param("i", $rid);
+            $st->execute();
+        }
+        header('Location: reports.php?msg=resolved&filter=' . urlencode($filter_redirect)); exit();
+    } elseif ($_POST['action'] === 'remove_product') {
+        $pid = intval($_POST['pid'] ?? 0);
+        $rid = intval($_POST['rid'] ?? 0);
+        if ($pid > 0) {
+            $st1 = $conn->prepare("UPDATE products SET status='removed' WHERE id=?");
+            $st1->bind_param("i", $pid);
+            $st1->execute();
+        }
+        if ($rid > 0) {
+            $st2 = $conn->prepare("UPDATE reports SET status='reviewed' WHERE id=?");
+            $st2->bind_param("i", $rid);
+            $st2->execute();
+        }
+        header('Location: reports.php?msg=product_removed&filter=' . urlencode($filter_redirect)); exit();
+    }
 }
 
 $filter  = $_GET['filter'] ?? 'pending';
 if (!is_string($filter) || !in_array($filter, ['all', 'pending', 'reviewed', 'resolved'], true)) {
     $filter = 'pending';
 }
-$where   = $filter === 'all' ? '1=1' : "r.status='$filter'";
-
-$reports = $conn->query("
+$reports_sql = "
     SELECT r.*, u.full_name AS reporter_name, u.email AS reporter_email,
            p.title AS product_title, p.id AS product_id, p.status AS product_status,
            s.full_name AS seller_name
@@ -32,9 +43,15 @@ $reports = $conn->query("
     JOIN users u ON r.reporter_id = u.id
     JOIN products p ON r.product_id = p.id
     JOIN users s ON p.seller_id = s.id
-    WHERE $where
-    ORDER BY r.created_at DESC
-");
+";
+if ($filter === 'all') {
+    $reports = $conn->query($reports_sql . " ORDER BY r.created_at DESC");
+} else {
+    $r_stmt = $conn->prepare($reports_sql . " WHERE r.status = ? ORDER BY r.created_at DESC");
+    $r_stmt->bind_param("s", $filter);
+    $r_stmt->execute();
+    $reports = $r_stmt->get_result();
+}
 
 $pending  = (int)($conn->query("SELECT COUNT(*) FROM reports WHERE status='pending'")->fetch_row()[0] ?? 0);
 $reviewed = (int)($conn->query("SELECT COUNT(*) FROM reports WHERE status='reviewed'")->fetch_row()[0] ?? 0);
@@ -56,63 +73,9 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 </head>
 <body style="background:#FAFAF9;">
 
-<div class="d-flex" style="min-height:100vh;">
+<div class="d-flex flex-column flex-md-row" style="min-height:100vh;">
 
-    <!-- ── SIDEBAR NAVIGATION ────────────────────────────────────── -->
-    <aside class="admin-sidebar-nav d-none d-md-flex">
-        <div class="px-4 py-4 border-bottom border-secondary border-opacity-25">
-            <div class="d-flex align-items-center gap-2">
-                <div class="brand-icon-box" style="width:34px;height:34px;font-size:16px;">
-                    <i class="bi bi-bag-check-fill"></i>
-                </div>
-                <div>
-                    <div class="fw-bold text-white fs-5 leading-none">
-                        Uni<span style="color:var(--accent-orange);">Market</span>
-                    </div>
-                    <span class="small text-white-50" style="font-size:11px;">Admin Console</span>
-                </div>
-            </div>
-        </div>
-
-        <nav class="py-3 flex-grow-1">
-            <a href="index.php" class="admin-nav-item">
-                <i class="bi bi-grid-1x2"></i> Dashboard
-            </a>
-            <a href="orders.php" class="admin-nav-item">
-                <i class="bi bi-receipt"></i> Orders & Shipments
-            </a>
-            <a href="products.php" class="admin-nav-item">
-                <i class="bi bi-box-seam"></i> Products CRUD
-            </a>
-            <a href="categories.php" class="admin-nav-item">
-                <i class="bi bi-tags"></i> Categories CRUD
-            </a>
-            <a href="users.php" class="admin-nav-item">
-                <i class="bi bi-people"></i> Users & Merchants
-            </a>
-            <a href="reports.php" class="admin-nav-item active">
-                <i class="bi bi-flag"></i> Reports
-                <?php if ($pending > 0): ?>
-                    <span class="badge bg-danger ms-auto"><?= $pending ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="messages.php" class="admin-nav-item">
-                <i class="bi bi-chat-dots"></i> Inquiries
-                <?php if ($unread_messages > 0): ?>
-                    <span class="badge bg-warning text-dark ms-auto"><?= $unread_messages ?></span>
-                <?php endif; ?>
-            </a>
-        </nav>
-
-        <div class="p-3 border-top border-secondary border-opacity-25">
-            <a href="../dashboard.php" target="_blank" class="admin-nav-item py-2 px-3 rounded-2 text-white-50 mb-1">
-                <i class="bi bi-box-arrow-up-right"></i> View Live Site
-            </a>
-            <a href="../logout.php" class="admin-nav-link" style="color:#f87171;padding:10px 20px;">
-                <i class="bi bi-box-arrow-right"></i> Sign Out
-            </a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <main class="flex-fill p-4" style="overflow-x:hidden;">
         <h3 class="fw-bold mb-1" style="color:var(--brand-slate);">Customer Reports & Safety</h3>
@@ -212,16 +175,23 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                         <td>
                             <div class="d-flex gap-1 flex-wrap">
                                 <?php if ($r['status'] !== 'resolved'): ?>
-                                <a href="?resolve=<?= $r['id'] ?>&filter=<?= $filter ?>" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size:11px;">
-                                    Resolve
-                                </a>
+                                <form method="POST" action="" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="resolve">
+                                    <input type="hidden" name="rid" value="<?= (int)$r['id'] ?>">
+                                    <input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size:11px;">Resolve</button>
+                                </form>
                                 <?php endif; ?>
                                 <?php if ($r['product_status'] !== 'removed'): ?>
-                                <a href="?remove_product=<?= $r['product_id'] ?>&rid=<?= $r['id'] ?>&filter=<?= $filter ?>"
-                                   class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:11px;"
-                                   onclick="return confirm('Remove this product listing?')">
-                                    Remove Item
-                                </a>
+                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('Remove this product listing?')">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="remove_product">
+                                    <input type="hidden" name="pid" value="<?= (int)$r['product_id'] ?>">
+                                    <input type="hidden" name="rid" value="<?= (int)$r['id'] ?>">
+                                    <input type="hidden" name="filter" value="<?= htmlspecialchars($filter) ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:11px;">Remove Item</button>
+                                </form>
                                 <?php endif; ?>
                             </div>
                         </td>

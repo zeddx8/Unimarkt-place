@@ -13,13 +13,15 @@ $page_title = 'Operations Dashboard';
 // Handle quick order status update from dashboard
 $msg = '';
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_order_status') {
-    $order_id = intval($_POST['order_id'] ?? 0);
-    $new_status = sanitize($_POST['new_status'] ?? '');
-    if ($order_id > 0 && in_array($new_status, ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], true)) {
-        $stmt_up = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
-        $stmt_up->bind_param("si", $new_status, $order_id);
-        if ($stmt_up->execute()) {
-            $msg = 'Order #' . $order_id . ' status successfully updated to ' . strtoupper($new_status) . '.';
+    if (verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $order_id = intval($_POST['order_id'] ?? 0);
+        $new_status = sanitize($_POST['new_status'] ?? '');
+        if ($order_id > 0 && in_array($new_status, ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], true)) {
+            $stmt_up = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
+            $stmt_up->bind_param("si", $new_status, $order_id);
+            if ($stmt_up->execute()) {
+                $msg = 'Order #' . $order_id . ' status successfully updated to ' . strtoupper($new_status) . '.';
+            }
         }
     }
 }
@@ -81,66 +83,9 @@ $recent_products = $conn->query("
 </head>
 <body style="background:#FAFAF9;">
 
-<div class="d-flex" style="min-height:100vh;">
+<div class="d-flex flex-column flex-md-row" style="min-height:100vh;">
 
-    <!-- ── SIDEBAR NAVIGATION ────────────────────────────────────── -->
-    <aside class="admin-sidebar-nav d-none d-md-flex">
-        <!-- Brand Header -->
-        <div class="px-4 py-4 border-bottom border-secondary border-opacity-25">
-            <div class="d-flex align-items-center gap-2">
-                <div class="brand-icon-box" style="width:34px;height:34px;font-size:16px;">
-                    <i class="bi bi-bag-check-fill"></i>
-                </div>
-                <div>
-                    <div class="fw-bold text-white fs-5 leading-none">
-                        Uni<span style="color:var(--accent-orange);">Market</span>
-                    </div>
-                    <span class="small text-white-50" style="font-size:11px;">Admin Console</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Navigation Links -->
-        <nav class="py-3 flex-grow-1">
-            <a href="index.php" class="admin-nav-item active">
-                <i class="bi bi-grid-1x2"></i> Dashboard
-            </a>
-            <a href="orders.php" class="admin-nav-item">
-                <i class="bi bi-receipt"></i> Orders & Shipments
-            </a>
-            <a href="products.php" class="admin-nav-item">
-                <i class="bi bi-box-seam"></i> Products CRUD
-            </a>
-            <a href="categories.php" class="admin-nav-item">
-                <i class="bi bi-tags"></i> Categories CRUD
-            </a>
-            <a href="users.php" class="admin-nav-item">
-                <i class="bi bi-people"></i> Users & Merchants
-            </a>
-            <a href="reports.php" class="admin-nav-item">
-                <i class="bi bi-flag"></i> Reports
-                <?php if ($pending_reports > 0): ?>
-                    <span class="badge bg-danger ms-auto"><?= $pending_reports ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="messages.php" class="admin-nav-item">
-                <i class="bi bi-chat-dots"></i> Inquiries
-                <?php if ($unread_messages > 0): ?>
-                    <span class="badge bg-warning text-dark ms-auto"><?= $unread_messages ?></span>
-                <?php endif; ?>
-            </a>
-        </nav>
-
-        <!-- Footer Shortcuts -->
-        <div class="p-3 border-top border-secondary border-opacity-25">
-            <a href="../dashboard.php" target="_blank" class="admin-nav-item py-2 px-3 rounded-2 text-white-50 mb-1">
-                <i class="bi bi-box-arrow-up-right"></i> View Live Site
-            </a>
-            <a href="../logout.php" class="admin-nav-item py-2 px-3 rounded-2 text-danger">
-                <i class="bi bi-box-arrow-right"></i> Sign Out
-            </a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <!-- ── MAIN CONTENT AREA ─────────────────────────────────────── -->
     <main class="flex-fill p-4" style="overflow-x:hidden;">
@@ -299,6 +244,7 @@ $recent_products = $conn->query("
                         <td>
                             <!-- Inline Status Update Form -->
                             <form method="POST" action="" class="d-flex align-items-center gap-1">
+                                <?= csrfField() ?>
                                 <input type="hidden" name="action" value="update_order_status">
                                 <input type="hidden" name="order_id" value="<?= $ord['id'] ?>">
                                 <select name="new_status" class="form-select form-select-sm py-1" style="font-size:12px;width:120px;" onchange="this.form.submit()">
@@ -354,8 +300,9 @@ $recent_products = $conn->query("
                         <td>
                             <div class="d-flex align-items-center gap-2">
                                 <div style="width:40px;height:40px;background:#F1F5F9;border-radius:8px;overflow:hidden;border:1px solid var(--border-color);flex-shrink:0;">
-                                    <?php if ($prod['image']): ?>
-                                        <img src="<?= htmlspecialchars($prod['image']) ?>" alt="" style="width:100%;height:100%;object-fit:cover;">
+                                    <?php $dashImg = getAdminImageUrl($prod['image'] ?? ''); ?>
+                                    <?php if ($dashImg): ?>
+                                        <img src="<?= htmlspecialchars($dashImg) ?>" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.onerror=null; this.src='<?= DEFAULT_PRODUCT_FALLBACK_IMAGE ?>';">
                                     <?php else: ?>
                                         <i class="bi <?= htmlspecialchars($prod['cat_icon'] ?? 'bi-box') ?> text-muted p-2 d-block"></i>
                                     <?php endif; ?>

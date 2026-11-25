@@ -43,13 +43,15 @@ if ($wl_query && $wl_query->num_rows > 0) {
 // Handle report
 $report_success = false;
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['report_reason'])) {
-    $reason  = sanitize($_POST['report_reason']);
-    $details = sanitize($_POST['report_details'] ?? '');
-    $stmt2   = $conn->prepare("INSERT INTO reports (reporter_id, product_id, reason, details) VALUES (?,?,?,?)");
-    if ($stmt2) {
-        $stmt2->bind_param("iiss", $uid, $id, $reason, $details);
-        $stmt2->execute();
-        $report_success = true;
+    if (verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $reason  = sanitize($_POST['report_reason']);
+        $details = sanitize($_POST['report_details'] ?? '');
+        $stmt2   = $conn->prepare("INSERT INTO reports (reporter_id, product_id, reason, details) VALUES (?,?,?,?)");
+        if ($stmt2) {
+            $stmt2->bind_param("iiss", $uid, $id, $reason, $details);
+            $stmt2->execute();
+            $report_success = true;
+        }
     }
 }
 
@@ -191,7 +193,7 @@ include 'includes/header.php';
                 <div class="d-flex align-items-center gap-3 mb-3 p-3 bg-light rounded-3">
                     <div class="seller-avatar" style="width:54px;height:54px;font-size:20px;border-radius:50%;background:var(--brand-navy);color:#fff;display:flex;align-items:center;justify-content:center;">
                         <?php if (!empty($p['seller_avatar'])): ?>
-                            <img src="uploads/<?= htmlspecialchars($p['seller_avatar']) ?>" alt="<?= $cleanSeller ?>" style="width:100%;height:100%;object-fit:cover;border-radius:50%;">
+                            <img src="<?= htmlspecialchars(getProductImageUrl($p['seller_avatar'])) ?>" alt="<?= $cleanSeller ?>" style="width:100%;height:100%;object-fit:cover;border-radius:50%;" onerror="this.onerror=null; this.style.display='none';">
                         <?php else: ?>
                             <?= getAvatar($p['seller_name']) ?>
                         <?php endif; ?>
@@ -212,14 +214,25 @@ include 'includes/header.php';
                     <!-- Merchant Owner Actions -->
                     <div class="d-grid gap-2">
                         <span class="badge bg-secondary bg-opacity-10 text-secondary fw-bold py-2 mb-2">You are managing this student listing</span>
+                        <a href="edit-product.php?id=<?= $p['id'] ?>" class="btn btn-outline-primary py-2 fw-bold">
+                            <i class="bi bi-pencil-square me-1"></i> Edit Listing
+                        </a>
                         <?php if ($p['status'] === 'available'): ?>
-                        <a href="mark-sold.php?id=<?= $p['id'] ?>" class="btn btn-outline-success py-2 fw-bold">
-                            <i class="bi bi-check-circle me-1"></i> Mark as Sold
-                        </a>
+                        <form method="POST" action="mark-sold.php" class="d-grid">
+                            <?= csrfField() ?>
+                            <input type="hidden" name="id" value="<?= $p['id'] ?>">
+                            <button type="submit" class="btn btn-outline-success py-2 fw-bold">
+                                <i class="bi bi-check-circle me-1"></i> Mark as Sold
+                            </button>
+                        </form>
                         <?php endif; ?>
-                        <a href="delete-product.php?id=<?= $p['id'] ?>" class="btn btn-outline-danger py-2 fw-bold">
-                            <i class="bi bi-trash3 me-1"></i> Remove from Inventory
-                        </a>
+                        <form method="POST" action="delete-product.php" class="d-grid" onsubmit="return confirm('Remove this listing from inventory?')">
+                            <?= csrfField() ?>
+                            <input type="hidden" name="id" value="<?= $p['id'] ?>">
+                            <button type="submit" class="btn btn-outline-danger py-2 fw-bold">
+                                <i class="bi bi-trash3 me-1"></i> Remove from Inventory
+                            </button>
+                        </form>
                     </div>
 
                 <?php elseif ($p['status'] === 'available'): ?>
@@ -279,6 +292,7 @@ include 'includes/header.php';
                     </div>
                     <?php else: ?>
                     <form method="POST">
+                        <?= csrfField() ?>
                         <div class="mb-3">
                             <label class="um-field-label" style="font-size:12px;">Reason</label>
                             <select name="report_reason" class="form-select um-input py-2" style="font-size:13px;" required>

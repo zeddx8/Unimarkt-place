@@ -15,60 +15,76 @@ $error = '';
 
 // ── 1. HANDLE CREATE CATEGORY ────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_category') {
-    $name  = sanitize($_POST['name'] ?? '');
-    $slug  = sanitize($_POST['slug'] ?? '');
-    $icon  = sanitize($_POST['icon'] ?? 'bi-tag');
-    $image = sanitize($_POST['image'] ?? '');
-
-    if (empty($slug)) {
-        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name)));
-    }
-
-    if (empty($name) || empty($slug)) {
-        $error = 'Category name and slug are required.';
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token. Please refresh and try again.';
     } else {
-        $stmt_ins = $conn->prepare("INSERT INTO categories (name, slug, icon, image) VALUES (?, ?, ?, ?)");
-        $stmt_ins->bind_param("ssss", $name, $slug, $icon, $image);
-        if ($stmt_ins->execute()) {
-            $msg = 'Category "' . htmlspecialchars($name) . '" created successfully!';
+        $name  = sanitize($_POST['name'] ?? '');
+        $slug  = sanitize($_POST['slug'] ?? '');
+        $icon  = sanitize($_POST['icon'] ?? 'bi-tag');
+        $image = sanitize($_POST['image'] ?? '');
+
+        if (empty($slug)) {
+            $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $name)));
+        }
+
+        if (empty($name) || empty($slug)) {
+            $error = 'Category name and slug are required.';
         } else {
-            $error = 'Could not create category: ' . $conn->error;
+            $stmt_ins = $conn->prepare("INSERT INTO categories (name, slug, icon, image) VALUES (?, ?, ?, ?)");
+            $stmt_ins->bind_param("ssss", $name, $slug, $icon, $image);
+            if ($stmt_ins->execute()) {
+                $msg = 'Category "' . htmlspecialchars($name) . '" created successfully!';
+            } else {
+                $error = 'Could not create category: ' . $conn->error;
+            }
         }
     }
 }
 
 // ── 2. HANDLE UPDATE CATEGORY ────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_category') {
-    $cat_id = intval($_POST['category_id'] ?? 0);
-    $name   = sanitize($_POST['name'] ?? '');
-    $slug   = sanitize($_POST['slug'] ?? '');
-    $icon   = sanitize($_POST['icon'] ?? 'bi-tag');
-    $image  = sanitize($_POST['image'] ?? '');
-
-    if ($cat_id <= 0 || empty($name) || empty($slug)) {
-        $error = 'Please provide valid category details.';
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token. Please refresh and try again.';
     } else {
-        $stmt_up = $conn->prepare("UPDATE categories SET name = ?, slug = ?, icon = ?, image = ? WHERE id = ?");
-        $stmt_up->bind_param("ssssi", $name, $slug, $icon, $image, $cat_id);
-        if ($stmt_up->execute()) {
-            $msg = 'Category #' . $cat_id . ' updated successfully!';
+        $cat_id = intval($_POST['category_id'] ?? 0);
+        $name   = sanitize($_POST['name'] ?? '');
+        $slug   = sanitize($_POST['slug'] ?? '');
+        $icon   = sanitize($_POST['icon'] ?? 'bi-tag');
+        $image  = sanitize($_POST['image'] ?? '');
+
+        if ($cat_id <= 0 || empty($name) || empty($slug)) {
+            $error = 'Please provide valid category details.';
         } else {
-            $error = 'Could not update category: ' . $conn->error;
+            $stmt_up = $conn->prepare("UPDATE categories SET name = ?, slug = ?, icon = ?, image = ? WHERE id = ?");
+            $stmt_up->bind_param("ssssi", $name, $slug, $icon, $image, $cat_id);
+            if ($stmt_up->execute()) {
+                $msg = 'Category #' . $cat_id . ' updated successfully!';
+            } else {
+                $error = 'Could not update category: ' . $conn->error;
+            }
         }
     }
 }
 
 // ── 3. HANDLE DELETE CATEGORY ────────────────────────────────
-if (isset($_GET['delete'])) {
-    $del_id = intval($_GET['delete']);
-    if ($del_id > 0) {
-        // Check if products exist in category
-        $chk_p = $conn->query("SELECT COUNT(*) FROM products WHERE category_id = $del_id")->fetch_row()[0] ?? 0;
-        if ($chk_p > 0) {
-            $error = 'Cannot delete category #' . $del_id . ' because it currently contains ' . $chk_p . ' active products. Please reassign or delete the products first.';
-        } else {
-            $conn->query("DELETE FROM categories WHERE id = $del_id");
-            $msg = 'Category #' . $del_id . ' deleted successfully.';
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_category') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token. Please refresh and try again.';
+    } else {
+        $del_id = intval($_POST['category_id'] ?? 0);
+        if ($del_id > 0) {
+            $chk_stmt = $conn->prepare("SELECT COUNT(*) FROM products WHERE category_id = ?");
+            $chk_stmt->bind_param("i", $del_id);
+            $chk_stmt->execute();
+            $chk_p = $chk_stmt->get_result()->fetch_row()[0] ?? 0;
+            if ($chk_p > 0) {
+                $error = 'Cannot delete category #' . $del_id . ' because it currently contains ' . $chk_p . ' active products. Please reassign or delete the products first.';
+            } else {
+                $del_stmt = $conn->prepare("DELETE FROM categories WHERE id = ?");
+                $del_stmt->bind_param("i", $del_id);
+                $del_stmt->execute();
+                $msg = 'Category #' . $del_id . ' deleted successfully.';
+            }
         }
     }
 }
@@ -99,63 +115,9 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 </head>
 <body style="background:#FAFAF9;">
 
-<div class="d-flex" style="min-height:100vh;">
+<div class="d-flex flex-column flex-md-row" style="min-height:100vh;">
 
-    <!-- ── SIDEBAR NAVIGATION ────────────────────────────────────── -->
-    <aside class="admin-sidebar-nav d-none d-md-flex">
-        <div class="px-4 py-4 border-bottom border-secondary border-opacity-25">
-            <div class="d-flex align-items-center gap-2">
-                <div class="brand-icon-box" style="width:34px;height:34px;font-size:16px;">
-                    <i class="bi bi-bag-check-fill"></i>
-                </div>
-                <div>
-                    <div class="fw-bold text-white fs-5 leading-none">
-                        Uni<span style="color:var(--accent-orange);">Market</span>
-                    </div>
-                    <span class="small text-white-50" style="font-size:11px;">Admin Console</span>
-                </div>
-            </div>
-        </div>
-
-        <nav class="py-3 flex-grow-1">
-            <a href="index.php" class="admin-nav-item">
-                <i class="bi bi-grid-1x2"></i> Dashboard
-            </a>
-            <a href="orders.php" class="admin-nav-item">
-                <i class="bi bi-receipt"></i> Orders & Shipments
-            </a>
-            <a href="products.php" class="admin-nav-item">
-                <i class="bi bi-box-seam"></i> Products CRUD
-            </a>
-            <a href="categories.php" class="admin-nav-item active">
-                <i class="bi bi-tags"></i> Categories CRUD
-            </a>
-            <a href="users.php" class="admin-nav-item">
-                <i class="bi bi-people"></i> Users & Merchants
-            </a>
-            <a href="reports.php" class="admin-nav-item">
-                <i class="bi bi-flag"></i> Reports
-                <?php if ($pending_reports > 0): ?>
-                    <span class="badge bg-danger ms-auto"><?= $pending_reports ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="messages.php" class="admin-nav-item">
-                <i class="bi bi-chat-dots"></i> Inquiries
-                <?php if ($unread_messages > 0): ?>
-                    <span class="badge bg-warning text-dark ms-auto"><?= $unread_messages ?></span>
-                <?php endif; ?>
-            </a>
-        </nav>
-
-        <div class="p-3 border-top border-secondary border-opacity-25">
-            <a href="../dashboard.php" target="_blank" class="admin-nav-item py-2 px-3 rounded-2 text-white-50 mb-1">
-                <i class="bi bi-box-arrow-up-right"></i> View Live Site
-            </a>
-            <a href="../logout.php" class="admin-nav-link" style="color:#f87171;padding:10px 20px;">
-                <i class="bi bi-box-arrow-right"></i> Sign Out
-            </a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <!-- ── MAIN CONTENT ──────────────────────────────────────────── -->
     <main class="flex-fill p-4" style="overflow-x:hidden;">
@@ -241,11 +203,15 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                                     <i class="bi bi-pencil"></i>
                                 </button>
 
-                                <!-- Delete Link -->
-                                <a href="?delete=<?= $cat['id'] ?>" class="btn btn-outline-danger btn-sm py-1 px-2"
-                                   onclick="return confirm('Are you sure you want to delete this category?')" title="Delete Category">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                                <!-- Delete Form -->
+                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('Are you sure you want to delete this category?')">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="delete_category">
+                                    <input type="hidden" name="category_id" value="<?= (int)$cat['id'] ?>">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2" title="Delete Category">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                             </div>
 
                             <!-- ══ MODAL FOR EDITING CATEGORY ═══════════════ -->
@@ -253,6 +219,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                                 <div class="modal-dialog modal-dialog-centered">
                                     <div class="modal-content border-0 shadow-lg" style="border-radius:16px;">
                                         <form method="POST" action="">
+                                            <?= csrfField() ?>
                                             <input type="hidden" name="action" value="update_category">
                                             <input type="hidden" name="category_id" value="<?= $cat['id'] ?>">
                                             <div class="modal-header bg-light">
@@ -302,6 +269,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
     <div class="modal-dialog modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius:16px;">
             <form method="POST" action="">
+                <?= csrfField() ?>
                 <input type="hidden" name="action" value="create_category">
                 <div class="modal-header bg-light">
                     <h6 class="modal-title fw-bold">Create New Commercial Category</h6>

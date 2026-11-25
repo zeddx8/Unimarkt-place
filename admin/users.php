@@ -2,28 +2,44 @@
 require_once '../includes/db.php';
 requireAdmin();
 
-// Handle actions
-if (isset($_GET['ban'])) {
-    $bid = intval($_GET['ban']);
-    $conn->query("UPDATE users SET is_banned=1 WHERE id=$bid AND is_admin=0");
-    header('Location: users.php?msg=banned'); exit();
-}
-if (isset($_GET['unban'])) {
-    $bid = intval($_GET['unban']);
-    $conn->query("UPDATE users SET is_banned=0 WHERE id=$bid");
-    header('Location: users.php?msg=unbanned'); exit();
-}
-if (isset($_GET['verify'])) {
-    $vid = intval($_GET['verify']);
-    $conn->query("UPDATE users SET is_verified=1 WHERE id=$vid");
-    header('Location: users.php?msg=verified'); exit();
+// Handle actions via POST + CSRF
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['user_id'])) {
+    requireCsrf('users.php');
+    $target_id = intval($_POST['user_id']);
+    $action = $_POST['action'];
+    if ($target_id > 0) {
+        if ($action === 'ban') {
+            $st = $conn->prepare("UPDATE users SET is_banned=1 WHERE id=? AND is_admin=0");
+            $st->bind_param("i", $target_id);
+            $st->execute();
+            header('Location: users.php?msg=banned'); exit();
+        } elseif ($action === 'unban') {
+            $st = $conn->prepare("UPDATE users SET is_banned=0 WHERE id=?");
+            $st->bind_param("i", $target_id);
+            $st->execute();
+            header('Location: users.php?msg=unbanned'); exit();
+        } elseif ($action === 'verify') {
+            $st = $conn->prepare("UPDATE users SET is_verified=1 WHERE id=?");
+            $st->bind_param("i", $target_id);
+            $st->execute();
+            header('Location: users.php?msg=verified'); exit();
+        }
+    }
 }
 
-$search = sanitize($_GET['q'] ?? '');
+$search = trim((string)($_GET['q'] ?? ''));
 $sql = "SELECT u.*, (SELECT COUNT(*) FROM products WHERE seller_id=u.id AND status!='removed') AS listing_count FROM users u WHERE u.is_admin=0";
-if ($search) $sql .= " AND (u.full_name LIKE '%$search%' OR u.email LIKE '%$search%' OR u.phone LIKE '%$search%')";
-$sql .= " ORDER BY u.created_at DESC";
-$users = $conn->query($sql);
+if ($search !== '') {
+    $sql .= " AND (u.full_name LIKE ? OR u.email LIKE ? OR u.phone LIKE ?) ORDER BY u.created_at DESC";
+    $like = '%' . $search . '%';
+    $u_stmt = $conn->prepare($sql);
+    $u_stmt->bind_param("sss", $like, $like, $like);
+    $u_stmt->execute();
+    $users = $u_stmt->get_result();
+} else {
+    $sql .= " ORDER BY u.created_at DESC";
+    $users = $conn->query($sql);
+}
 
 $pending_reports = (int)($conn->query("SELECT COUNT(*) FROM reports WHERE status='pending'")->fetch_row()[0] ?? 0);
 $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_read=0")->fetch_row()[0] ?? 0);
@@ -42,63 +58,9 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 </head>
 <body style="background:#FAFAF9;">
 
-<div class="d-flex" style="min-height:100vh;">
+<div class="d-flex flex-column flex-md-row" style="min-height:100vh;">
 
-    <!-- ── SIDEBAR NAVIGATION ────────────────────────────────────── -->
-    <aside class="admin-sidebar-nav d-none d-md-flex">
-        <div class="px-4 py-4 border-bottom border-secondary border-opacity-25">
-            <div class="d-flex align-items-center gap-2">
-                <div class="brand-icon-box" style="width:34px;height:34px;font-size:16px;">
-                    <i class="bi bi-bag-check-fill"></i>
-                </div>
-                <div>
-                    <div class="fw-bold text-white fs-5 leading-none">
-                        Uni<span style="color:var(--accent-orange);">Market</span>
-                    </div>
-                    <span class="small text-white-50" style="font-size:11px;">Admin Console</span>
-                </div>
-            </div>
-        </div>
-
-        <nav class="py-3 flex-grow-1">
-            <a href="index.php" class="admin-nav-item">
-                <i class="bi bi-grid-1x2"></i> Dashboard
-            </a>
-            <a href="orders.php" class="admin-nav-item">
-                <i class="bi bi-receipt"></i> Orders & Shipments
-            </a>
-            <a href="products.php" class="admin-nav-item">
-                <i class="bi bi-box-seam"></i> Products CRUD
-            </a>
-            <a href="categories.php" class="admin-nav-item">
-                <i class="bi bi-tags"></i> Categories CRUD
-            </a>
-            <a href="users.php" class="admin-nav-item active">
-                <i class="bi bi-people"></i> Users & Merchants
-            </a>
-            <a href="reports.php" class="admin-nav-item">
-                <i class="bi bi-flag"></i> Reports
-                <?php if ($pending_reports > 0): ?>
-                    <span class="badge bg-danger ms-auto"><?= $pending_reports ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="messages.php" class="admin-nav-item">
-                <i class="bi bi-chat-dots"></i> Inquiries
-                <?php if ($unread_messages > 0): ?>
-                    <span class="badge bg-warning text-dark ms-auto"><?= $unread_messages ?></span>
-                <?php endif; ?>
-            </a>
-        </nav>
-
-        <div class="p-3 border-top border-secondary border-opacity-25">
-            <a href="../dashboard.php" target="_blank" class="admin-nav-item py-2 px-3 rounded-2 text-white-50 mb-1">
-                <i class="bi bi-box-arrow-up-right"></i> View Live Site
-            </a>
-            <a href="../logout.php" class="admin-nav-link" style="color:#f87171;padding:10px 20px;">
-                <i class="bi bi-box-arrow-right"></i> Sign Out
-            </a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <main class="flex-fill p-4" style="overflow-x:hidden;">
         <h3 class="fw-bold mb-1" style="color:var(--brand-slate);">Users & Merchant Accounts</h3>
@@ -133,7 +95,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                             <div class="d-flex align-items-center gap-2">
                                 <div class="seller-avatar" style="width:36px;height:36px;font-size:13px;border-radius:50%;background:var(--brand-slate);color:#fff;display:flex;align-items:center;justify-content:center;overflow:hidden;">
                                     <?php if ($u['avatar']): ?>
-                                        <img src="<?= htmlspecialchars($u['avatar']) ?>" alt="" style="width:100%;height:100%;object-fit:cover;">
+                                        <img src="<?= htmlspecialchars(getAdminImageUrl($u['avatar'])) ?>" alt="" style="width:100%;height:100%;object-fit:cover;" onerror="this.onerror=null; this.style.display='none';">
                                     <?php else: ?>
                                         <?= getAvatar($u['full_name']) ?>
                                     <?php endif; ?>
@@ -161,12 +123,27 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                         <td>
                             <div class="d-flex gap-1 flex-wrap">
                                 <?php if (!$u['is_verified'] && !$u['is_banned']): ?>
-                                <a href="?verify=<?= $u['id'] ?>" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size:11.5px;">Verify</a>
+                                <form method="POST" action="" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="verify">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size:11.5px;">Verify</button>
+                                </form>
                                 <?php endif; ?>
                                 <?php if ($u['is_banned']): ?>
-                                <a href="?unban=<?= $u['id'] ?>" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size:11.5px;">Unban</a>
+                                <form method="POST" action="" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="unban">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-success py-1 px-2" style="font-size:11.5px;">Unban</button>
+                                </form>
                                 <?php else: ?>
-                                <a href="?ban=<?= $u['id'] ?>" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:11.5px;" onclick="return confirm('Ban this user?')">Ban</a>
+                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('Ban this user?')">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="ban">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:11.5px;">Ban</button>
+                                </form>
                                 <?php endif; ?>
                             </div>
                         </td>

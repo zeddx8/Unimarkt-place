@@ -26,6 +26,13 @@ window.resolveImageUrl = function (img) {
     return clean ? ('uploads/' + clean) : '';
 };
 
+// ── Centralized HTML Escaper ─────────────────────────────────
+window.escapeHtml = function (str) {
+    const div = document.createElement('div');
+    div.textContent = str == null ? '' : String(str);
+    return div.innerHTML;
+};
+
 // ── Toast Notification System ────────────────────────────────
 window.showToast = function (message, type = 'success') {
     let container = document.getElementById('umToastStack');
@@ -45,7 +52,7 @@ window.showToast = function (message, type = 'success') {
 
     toast.innerHTML = `
         <i class="bi ${icon} fs-5"></i>
-        <div class="flex-grow-1" style="font-size:13.5px;font-weight:600;">${message}</div>
+        <div class="flex-grow-1" style="font-size:13.5px;font-weight:600;">${window.escapeHtml(message)}</div>
         <button type="button" class="btn-close btn-close-white btn-sm" aria-label="Close"></button>
     `;
 
@@ -133,6 +140,8 @@ window.UniCart = {
 
     clearCart() {
         localStorage.removeItem(this.STORAGE_KEY);
+        sessionStorage.removeItem('unimarket_promo_discount');
+        sessionStorage.removeItem('unimarket_promo_code');
         this.updateNavBadge();
         this.renderDrawer();
     },
@@ -193,26 +202,29 @@ window.UniCart = {
                     ? window.resolveImageUrl(item.image)
                     : (item.image.startsWith('http') ? item.image : 'uploads/' + item.image.replace(/^uploads\//i, ''));
             }
+            const safeTitle = window.escapeHtml(item.title);
+            const safeRegion = window.escapeHtml(item.region || 'Ghana Campus');
+            const safeIcon = window.escapeHtml(item.cat_icon || 'bi-bag');
             const imgTag = resolvedSrc
-                ? `<img src="${resolvedSrc}" alt="${item.title}" class="cart-item-thumb" onerror="this.onerror=null;this.src='${fallbackImg}';">`
-                : `<div class="cart-item-thumb d-flex align-items-center justify-content-center fs-3">${item.cat_icon}</div>`;
+                ? `<img src="${window.escapeHtml(resolvedSrc)}" alt="${safeTitle}" class="cart-item-thumb" onerror="this.onerror=null;this.src='${fallbackImg}';">`
+                : `<div class="cart-item-thumb d-flex align-items-center justify-content-center fs-3"><i class="bi ${safeIcon}"></i></div>`;
 
             html += `
                 <div class="cart-item-row">
                     ${imgTag}
                     <div class="flex-grow-1 min-w-0" style="min-width:0;">
-                        <div class="cart-item-name" title="${item.title}">${item.title}</div>
-                        <div class="small text-muted mb-1">${item.region}</div>
+                        <div class="cart-item-name" title="${safeTitle}">${safeTitle}</div>
+                        <div class="small text-muted mb-1">${safeRegion}</div>
                         <div class="d-flex align-items-center justify-content-between">
                             <span class="cart-item-price">${window.formatGHS(item.price)}</span>
                             <div class="qty-stepper">
-                                <button type="button" class="qty-step-btn" onclick="UniCart.updateQuantity(${item.id}, -1)">−</button>
-                                <span class="qty-val">${item.quantity}</span>
-                                <button type="button" class="qty-step-btn" onclick="UniCart.updateQuantity(${item.id}, 1)">+</button>
+                                <button type="button" class="qty-step-btn" onclick="UniCart.updateQuantity(${Number(item.id)}, -1)">−</button>
+                                <span class="qty-val">${Number(item.quantity) || 1}</span>
+                                <button type="button" class="qty-step-btn" onclick="UniCart.updateQuantity(${Number(item.id)}, 1)">+</button>
                             </div>
                         </div>
                     </div>
-                    <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2" onclick="UniCart.removeItem(${item.id})" title="Remove">
+                    <button type="button" class="btn btn-sm btn-link text-muted p-0 ms-2" onclick="UniCart.removeItem(${Number(item.id)})" title="Remove">
                         <i class="bi bi-trash3 fs-6 text-danger"></i>
                     </button>
                 </div>
@@ -263,14 +275,25 @@ document.addEventListener('DOMContentLoaded', function () {
     if (searchInput) {
         searchInput.addEventListener('input', function () {
             const q = this.value.toLowerCase().trim();
-            document.querySelectorAll('.product-grid-item').forEach(card => {
+            const cards = document.querySelectorAll('.product-grid-item');
+            let visibleCount = 0;
+            cards.forEach(card => {
                 const title  = card.dataset.title?.toLowerCase() || '';
                 const seller = card.dataset.seller?.toLowerCase() || '';
                 const cat    = card.dataset.cat?.toLowerCase() || '';
                 const region = card.dataset.region?.toLowerCase() || '';
                 const match  = title.includes(q) || seller.includes(q) || cat.includes(q) || region.includes(q);
                 card.style.display = match ? '' : 'none';
+                if (match) visibleCount++;
             });
+            const countBadge = document.getElementById('activeListingsCount');
+            if (countBadge) {
+                countBadge.textContent = `${visibleCount} listing${visibleCount === 1 ? '' : 's'} active`;
+            }
+            const emptyState = document.getElementById('liveSearchEmptyState');
+            if (emptyState && cards.length > 0) {
+                emptyState.style.display = visibleCount === 0 ? 'block' : 'none';
+            }
         });
     }
 
@@ -383,22 +406,28 @@ document.addEventListener('DOMContentLoaded', function () {
             return div.innerHTML;
         };
 
+        let isSending = false;
+        let isFetching = false;
+        let lastHtml = chatBox.innerHTML;
+
         // Send Message via AJAX
         chatForm.addEventListener('submit', function (e) {
             e.preventDefault();
             const msg = (messageInput.value || '').trim();
-            if (!msg) return;
+            if (!msg || isSending) return;
 
+            isSending = true;
             const formData = new FormData(chatForm);
             formData.set('ajax', '1');
 
             // Immediate optimistic UI append
             const tempBubble = document.createElement('div');
             tempBubble.className = 'd-flex justify-content-end';
+            tempBubble.dataset.pending = 'true';
             tempBubble.innerHTML = `
                 <div class="msg-bubble msg-me">
                     ${escapeHtml(msg).replace(/\n/g, '<br>')}
-                    <div style="font-size:10px;opacity:.6;margin-top:4px;text-align:right;">Just now</div>
+                    <div style="font-size:10px;opacity:.6;margin-top:4px;text-align:right;">Sending...</div>
                 </div>
             `;
             // Remove empty notice if present
@@ -429,23 +458,28 @@ document.addEventListener('DOMContentLoaded', function () {
                 if (data && data.request_token && tokenInput) {
                     tokenInput.value = data.request_token;
                 }
+                tempBubble.removeAttribute('data-pending');
+                const meta = tempBubble.querySelector('div[style*="opacity"]');
+                if (meta) meta.textContent = 'Just now';
+                lastHtml = chatBox.innerHTML;
             })
             .catch(err => {
                 console.error('Chat error:', err);
+                tempBubble.remove();
+                messageInput.value = msg;
                 if (typeof window.showToast === 'function') {
                     window.showToast('Could not send message. Please retry.', 'error');
                 }
             })
             .finally(() => {
+                isSending = false;
                 if (submitBtn) submitBtn.disabled = false;
             });
         });
 
         // Realtime Polling for incoming messages every 3 seconds
-        let isFetching = false;
-        let lastHtml = chatBox.innerHTML;
         setInterval(() => {
-            if (isFetching || !productId || !receiverId) return;
+            if (isSending || isFetching || !productId || !receiverId) return;
             isFetching = true;
 
             const url = `${fetchEndpoint}?product_id=${encodeURIComponent(productId)}&receiver_id=${encodeURIComponent(receiverId)}`;

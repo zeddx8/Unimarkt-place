@@ -17,99 +17,115 @@ $admin_id = (int)$_SESSION['user_id'];
 
 // ── 1. HANDLE CREATE PRODUCT ─────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'create_product') {
-    $title      = sanitize($_POST['title'] ?? '');
-    $category_id = intval($_POST['category_id'] ?? 0);
-    $price      = floatval($_POST['price'] ?? 0);
-    $condition  = sanitize($_POST['condition_type'] ?? 'New');
-    $region     = sanitize($_POST['region'] ?? 'Greater Accra Region');
-    $desc       = sanitize($_POST['description'] ?? '');
-    $image_url  = sanitize($_POST['image_url'] ?? '');
-    $seller_id  = $admin_id;
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token. Please refresh and try again.';
+    } else {
+        $title       = sanitize($_POST['title'] ?? '');
+        $category_id = intval($_POST['category_id'] ?? 0);
+        $price       = floatval($_POST['price'] ?? 0);
+        $condition   = sanitize($_POST['condition_type'] ?? 'New');
+        $region      = sanitize($_POST['region'] ?? 'Greater Accra Region');
+        $desc        = sanitize($_POST['description'] ?? '');
+        $image_url   = sanitize($_POST['image_url'] ?? '');
+        $seller_id   = $admin_id;
 
-    // Handle file upload if provided
-    if (!empty($_FILES['image_file']['name'])) {
-        $upload = storeImageUpload($_FILES['image_file'], 'prod_', 5 * 1024 * 1024);
-        if ($upload['error']) {
-            $error = $upload['error'];
-        } elseif ($upload['filename']) {
-            $image_url = 'uploads/' . $upload['filename'];
+        if (!empty($_FILES['image_file']['name'])) {
+            $upload = storeImageUpload($_FILES['image_file'], 'prod_', 5 * 1024 * 1024);
+            if ($upload['error']) {
+                $error = $upload['error'];
+            } elseif ($upload['filename']) {
+                $image_url = $upload['filename'];
+            }
         }
-    }
 
-    if (empty($title) || $price <= 0 || $category_id <= 0) {
-        $error = 'Please provide a valid title, category, and positive price.';
-    } elseif (empty($error)) {
-        $stmt_ins = $conn->prepare("INSERT INTO products (seller_id, category_id, title, description, price, condition_type, region, image, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available')");
-        $stmt_ins->bind_param("iissdsss", $seller_id, $category_id, $title, $desc, $price, $condition, $region, $image_url);
-        if ($stmt_ins->execute()) {
-            $msg = 'Product "' . htmlspecialchars($title) . '" created successfully!';
-        } else {
-            $error = 'Could not create product: ' . $stmt_ins->error;
+        if (empty($title) || $price <= 0 || $category_id <= 0) {
+            $error = 'Please provide a valid title, category, and positive price.';
+        } elseif (empty($error)) {
+            $stmt_ins = $conn->prepare("INSERT INTO products (seller_id, category_id, title, description, price, condition_type, region, image, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'available')");
+            $stmt_ins->bind_param("iissdsss", $seller_id, $category_id, $title, $desc, $price, $condition, $region, $image_url);
+            if ($stmt_ins->execute()) {
+                $msg = 'Product "' . htmlspecialchars($title) . '" created successfully!';
+            } else {
+                $error = 'Could not create product: ' . $stmt_ins->error;
+            }
         }
     }
 }
 
 // ── 2. HANDLE UPDATE PRODUCT ─────────────────────────────────
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_product') {
-    $prod_id    = intval($_POST['product_id'] ?? 0);
-    $title      = sanitize($_POST['title'] ?? '');
-    $category_id = intval($_POST['category_id'] ?? 0);
-    $price      = floatval($_POST['price'] ?? 0);
-    $condition  = sanitize($_POST['condition_type'] ?? 'New');
-    $region     = sanitize($_POST['region'] ?? 'Greater Accra Region');
-    $status     = sanitize($_POST['status'] ?? 'available');
-    $desc       = sanitize($_POST['description'] ?? '');
-    $image_url  = sanitize($_POST['image_url'] ?? '');
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token. Please refresh and try again.';
+    } else {
+        $prod_id     = intval($_POST['product_id'] ?? 0);
+        $title       = sanitize($_POST['title'] ?? '');
+        $category_id = intval($_POST['category_id'] ?? 0);
+        $price       = floatval($_POST['price'] ?? 0);
+        $condition   = sanitize($_POST['condition_type'] ?? 'New');
+        $region      = sanitize($_POST['region'] ?? 'Greater Accra Region');
+        $status      = sanitize($_POST['status'] ?? 'available');
+        $desc        = sanitize($_POST['description'] ?? '');
+        $image_url   = sanitize($_POST['image_url'] ?? '');
 
-    // Handle file upload if provided
-    if (!empty($_FILES['image_file']['name'])) {
-        $upload = storeImageUpload($_FILES['image_file'], 'prod_', 5 * 1024 * 1024);
-        if ($upload['error']) {
-            $error = $upload['error'];
-        } elseif ($upload['filename']) {
-            $image_url = 'uploads/' . $upload['filename'];
+        if (!empty($_FILES['image_file']['name'])) {
+            $upload = storeImageUpload($_FILES['image_file'], 'prod_', 5 * 1024 * 1024);
+            if ($upload['error']) {
+                $error = $upload['error'];
+            } elseif ($upload['filename']) {
+                $image_url = $upload['filename'];
+            }
         }
-    }
 
-    if ($prod_id <= 0 || empty($title) || $price <= 0 || $category_id <= 0) {
-        $error = 'Please provide valid required fields for updating the product.';
-    } elseif (empty($error)) {
-        if ($image_url !== '') {
-            $stmt_up = $conn->prepare("UPDATE products SET title=?, category_id=?, price=?, condition_type=?, region=?, status=?, description=?, image=? WHERE id=?");
-            $stmt_up->bind_param("sidsssssi", $title, $category_id, $price, $condition, $region, $status, $desc, $image_url, $prod_id);
-        } else {
-            $stmt_up = $conn->prepare("UPDATE products SET title=?, category_id=?, price=?, condition_type=?, region=?, status=?, description=? WHERE id=?");
-            $stmt_up->bind_param("sidssssi", $title, $category_id, $price, $condition, $region, $status, $desc, $prod_id);
-        }
-        if ($stmt_up->execute()) {
-            $msg = 'Product #' . $prod_id . ' updated successfully!';
-        } else {
-            $error = 'Could not update product: ' . $stmt_up->error;
-        }
-    }
-}
-
-// ── 3. HANDLE DELETE PRODUCT ─────────────────────────────────
-if (isset($_GET['delete'])) {
-    $del_id = intval($_GET['delete']);
-    if ($del_id > 0) {
-        $stmt_del = $conn->prepare("DELETE FROM products WHERE id = ?");
-        $stmt_del->bind_param("i", $del_id);
-        if ($stmt_del->execute()) {
-            $msg = 'Product #' . $del_id . ' permanently deleted.';
-        } else {
-            $error = 'Delete failed: ' . $conn->error;
+        if ($prod_id <= 0 || empty($title) || $price <= 0 || $category_id <= 0) {
+            $error = 'Please provide valid required fields for updating the product.';
+        } elseif (empty($error)) {
+            if ($image_url !== '') {
+                $stmt_up = $conn->prepare("UPDATE products SET title=?, category_id=?, price=?, condition_type=?, region=?, status=?, description=?, image=? WHERE id=?");
+                $stmt_up->bind_param("sidsssssi", $title, $category_id, $price, $condition, $region, $status, $desc, $image_url, $prod_id);
+            } else {
+                $stmt_up = $conn->prepare("UPDATE products SET title=?, category_id=?, price=?, condition_type=?, region=?, status=?, description=? WHERE id=?");
+                $stmt_up->bind_param("sidssssi", $title, $category_id, $price, $condition, $region, $status, $desc, $prod_id);
+            }
+            if ($stmt_up->execute()) {
+                $msg = 'Product #' . $prod_id . ' updated successfully!';
+            } else {
+                $error = 'Could not update product: ' . $stmt_up->error;
+            }
         }
     }
 }
 
-// ── 4. HANDLE SOFT-DELETE / REMOVE / RESTORE ─────────────────
-if (isset($_GET['status_toggle'])) {
-    $toggle_id = intval($_GET['id'] ?? 0);
-    $new_st = sanitize($_GET['to'] ?? 'available');
-    if ($toggle_id > 0 && in_array($new_st, ['available', 'sold', 'removed'], true)) {
-        $conn->query("UPDATE products SET status='$new_st' WHERE id=$toggle_id");
-        $msg = 'Product #' . $toggle_id . ' status changed to ' . strtoupper($new_st) . '.';
+// ── 3. HANDLE DELETE PRODUCT (POST + CSRF) ───────────────────
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'delete_product') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token.';
+    } else {
+        $del_id = intval($_POST['product_id'] ?? 0);
+        if ($del_id > 0) {
+            $stmt_del = $conn->prepare("DELETE FROM products WHERE id = ?");
+            $stmt_del->bind_param("i", $del_id);
+            if ($stmt_del->execute()) {
+                $msg = 'Product #' . $del_id . ' permanently deleted.';
+            } else {
+                $error = 'Delete failed: ' . $conn->error;
+            }
+        }
+    }
+}
+
+// ── 4. HANDLE SOFT-DELETE / REMOVE / RESTORE (POST + CSRF) ───
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'status_toggle') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token.';
+    } else {
+        $toggle_id = intval($_POST['product_id'] ?? 0);
+        $new_st = sanitize($_POST['to'] ?? 'available');
+        if ($toggle_id > 0 && in_array($new_st, ['available', 'sold', 'removed'], true)) {
+            $st_t = $conn->prepare("UPDATE products SET status = ? WHERE id = ?");
+            $st_t->bind_param("si", $new_st, $toggle_id);
+            $st_t->execute();
+            $msg = 'Product #' . $toggle_id . ' status changed to ' . strtoupper($new_st) . '.';
+        }
     }
 }
 
@@ -117,31 +133,50 @@ if (isset($_GET['status_toggle'])) {
 $categories = $conn->query("SELECT * FROM categories ORDER BY name ASC")->fetch_all(MYSQLI_ASSOC);
 $regions = getGhanaCampuses();
 
-// Filter & Search
-$search   = sanitize($_GET['q'] ?? '');
+// Filter & Search (Prepared Statements)
+$search   = trim((string)($_GET['q'] ?? ''));
 $filter   = $_GET['filter'] ?? 'all';
 $cat_filt = intval($_GET['cat'] ?? 0);
 
-$where = "1=1";
-if ($filter === 'available') $where .= " AND p.status = 'available'";
-elseif ($filter === 'sold')  $where .= " AND p.status = 'sold'";
-elseif ($filter === 'removed') $where .= " AND p.status = 'removed'";
+$where_clauses = ["1=1"];
+$params = [];
+$types = "";
 
+if (in_array($filter, ['available', 'sold', 'removed'], true)) {
+    $where_clauses[] = "p.status = ?";
+    $params[] = $filter;
+    $types .= "s";
+}
 if ($cat_filt > 0) {
-    $where .= " AND p.category_id = $cat_filt";
+    $where_clauses[] = "p.category_id = ?";
+    $params[] = $cat_filt;
+    $types .= "i";
 }
-if ($search) {
-    $where .= " AND (p.title LIKE '%$search%' OR u.full_name LIKE '%$search%' OR p.region LIKE '%$search%')";
+if ($search !== '') {
+    $like = '%' . $search . '%';
+    $where_clauses[] = "(p.title LIKE ? OR u.full_name LIKE ? OR p.region LIKE ?)";
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $types .= "sss";
 }
 
-$products = $conn->query("
+$prod_sql = "
     SELECT p.*, c.name AS cat_name, c.icon AS cat_icon, u.full_name AS seller_name
     FROM products p
     JOIN categories c ON p.category_id = c.id
     JOIN users u ON p.seller_id = u.id
-    WHERE $where
+    WHERE " . implode(" AND ", $where_clauses) . "
     ORDER BY p.created_at DESC
-");
+";
+if (!empty($params)) {
+    $p_stmt = $conn->prepare($prod_sql);
+    $p_stmt->bind_param($types, ...$params);
+    $p_stmt->execute();
+    $products = $p_stmt->get_result();
+} else {
+    $products = $conn->query($prod_sql);
+}
 
 $counts = [
     'all'       => (int)($conn->query("SELECT COUNT(*) FROM products")->fetch_row()[0] ?? 0),
@@ -168,63 +203,9 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 </head>
 <body style="background:#FAFAF9;">
 
-<div class="d-flex" style="min-height:100vh;">
+<div class="d-flex flex-column flex-md-row" style="min-height:100vh;">
 
-    <!-- ── SIDEBAR NAVIGATION ────────────────────────────────────── -->
-    <aside class="admin-sidebar-nav d-none d-md-flex">
-        <div class="px-4 py-4 border-bottom border-secondary border-opacity-25">
-            <div class="d-flex align-items-center gap-2">
-                <div class="brand-icon-box" style="width:34px;height:34px;font-size:16px;">
-                    <i class="bi bi-bag-check-fill"></i>
-                </div>
-                <div>
-                    <div class="fw-bold text-white fs-5 leading-none">
-                        Uni<span style="color:var(--accent-orange);">Market</span>
-                    </div>
-                    <span class="small text-white-50" style="font-size:11px;">Admin Console</span>
-                </div>
-            </div>
-        </div>
-
-        <nav class="py-3 flex-grow-1">
-            <a href="index.php" class="admin-nav-item">
-                <i class="bi bi-grid-1x2"></i> Dashboard
-            </a>
-            <a href="orders.php" class="admin-nav-item">
-                <i class="bi bi-receipt"></i> Orders & Shipments
-            </a>
-            <a href="products.php" class="admin-nav-item active">
-                <i class="bi bi-box-seam"></i> Products CRUD
-            </a>
-            <a href="categories.php" class="admin-nav-item">
-                <i class="bi bi-tags"></i> Categories CRUD
-            </a>
-            <a href="users.php" class="admin-nav-item">
-                <i class="bi bi-people"></i> Users & Merchants
-            </a>
-            <a href="reports.php" class="admin-nav-item">
-                <i class="bi bi-flag"></i> Reports
-                <?php if ($pending_reports > 0): ?>
-                    <span class="badge bg-danger ms-auto"><?= $pending_reports ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="messages.php" class="admin-nav-item">
-                <i class="bi bi-chat-dots"></i> Inquiries
-                <?php if ($unread_messages > 0): ?>
-                    <span class="badge bg-warning text-dark ms-auto"><?= $unread_messages ?></span>
-                <?php endif; ?>
-            </a>
-        </nav>
-
-        <div class="p-3 border-top border-secondary border-opacity-25">
-            <a href="../dashboard.php" target="_blank" class="admin-nav-item py-2 px-3 rounded-2 text-white-50 mb-1">
-                <i class="bi bi-box-arrow-up-right"></i> View Live Site
-            </a>
-            <a href="../logout.php" class="admin-nav-link" style="color:#f87171;padding:10px 20px;">
-                <i class="bi bi-box-arrow-right"></i> Sign Out
-            </a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <!-- ── MAIN CONTENT ──────────────────────────────────────────── -->
     <main class="flex-fill p-4" style="overflow-x:hidden;">
@@ -354,20 +335,36 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                                 </button>
 
                                 <?php if ($p['status'] === 'removed'): ?>
-                                <a href="?status_toggle=1&id=<?= $p['id'] ?>&to=available" class="btn btn-outline-success btn-sm py-1 px-2" title="Restore Product">
-                                    <i class="bi bi-arrow-counterclockwise"></i>
-                                </a>
+                                <form method="POST" action="" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="status_toggle">
+                                    <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+                                    <input type="hidden" name="to" value="available">
+                                    <button type="submit" class="btn btn-outline-success btn-sm py-1 px-2" title="Restore Product">
+                                        <i class="bi bi-arrow-counterclockwise"></i>
+                                    </button>
+                                </form>
                                 <?php else: ?>
-                                <a href="?status_toggle=1&id=<?= $p['id'] ?>&to=removed" class="btn btn-outline-warning btn-sm py-1 px-2" title="Soft Remove">
-                                    <i class="bi bi-slash-circle"></i>
-                                </a>
+                                <form method="POST" action="" class="d-inline">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="status_toggle">
+                                    <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+                                    <input type="hidden" name="to" value="removed">
+                                    <button type="submit" class="btn btn-outline-warning btn-sm py-1 px-2" title="Soft Remove">
+                                        <i class="bi bi-slash-circle"></i>
+                                    </button>
+                                </form>
                                 <?php endif; ?>
 
                                 <!-- Hard Delete -->
-                                <a href="?delete=<?= $p['id'] ?>" class="btn btn-outline-danger btn-sm py-1 px-2"
-                                   onclick="return confirm('Are you sure you want to permanently delete this listing?')" title="Delete Permanently">
-                                    <i class="bi bi-trash"></i>
-                                </a>
+                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('Are you sure you want to permanently delete this listing?')">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="delete_product">
+                                    <input type="hidden" name="product_id" value="<?= (int)$p['id'] ?>">
+                                    <button type="submit" class="btn btn-outline-danger btn-sm py-1 px-2" title="Delete Permanently">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </form>
                             </div>
 
                             <!-- ══ MODAL FOR EDITING PRODUCT ═════════════════ -->
@@ -375,6 +372,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                                 <div class="modal-dialog modal-lg modal-dialog-centered">
                                     <div class="modal-content border-0 shadow-lg" style="border-radius:16px;">
                                         <form method="POST" action="" enctype="multipart/form-data">
+                                            <?= csrfField() ?>
                                             <input type="hidden" name="action" value="update_product">
                                             <input type="hidden" name="product_id" value="<?= $p['id'] ?>">
                                             <div class="modal-header bg-light">
@@ -464,6 +462,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
     <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content border-0 shadow-lg" style="border-radius:16px;">
             <form method="POST" action="" enctype="multipart/form-data">
+                <?= csrfField() ?>
                 <input type="hidden" name="action" value="create_product">
                 <div class="modal-header bg-light">
                     <h6 class="modal-title fw-bold">Create New Commercial Product Listing</h6>
@@ -529,5 +528,19 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const params = new URLSearchParams(window.location.search);
+    const action = params.get('action');
+    const id = params.get('id');
+    if (action === 'new') {
+        const el = document.getElementById('createProductModal');
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+    } else if (action === 'edit' && id) {
+        const el = document.getElementById('editProductModal' + id);
+        if (el) bootstrap.Modal.getOrCreateInstance(el).show();
+    }
+});
+</script>
 </body>
 </html>

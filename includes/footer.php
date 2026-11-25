@@ -102,6 +102,7 @@
                     <li><a href="dashboard.php?region=University+of+Ghana">University of Ghana (UG Legon)</a></li>
                     <li><a href="dashboard.php?region=KNUST">KNUST (Kumasi Campus)</a></li>
                     <li><a href="dashboard.php?region=UCC">University of Cape Coast (UCC)</a></li>
+                    <li><a href="dashboard.php?region=<?= urlencode('Cape Coast Technical University (CCTU)') ?>">Cape Coast Technical (CCTU)</a></li>
                     <li><a href="dashboard.php?region=UPSA">UPSA & Madina Hub</a></li>
                     <li><a href="dashboard.php?region=Ashesi">Ashesi University (Berekuso)</a></li>
                     <li><a href="dashboard.php">All 16 Regions & Campuses</a></li>
@@ -113,11 +114,11 @@
                 <h6 class="footer-col-title">Campus Commerce</h6>
                 <ul class="footer-menu-links">
                     <li><a href="dashboard.php">Student Brands & Merch</a></li>
-                    <li><a href="dashboard.php?cat=1">Tech & Gadgets</a></li>
-                    <li><a href="dashboard.php?cat=5">Fashion & Streetwear</a></li>
-                    <li><a href="dashboard.php?cat=6">Beauty & Care</a></li>
-                    <li><a href="dashboard.php?cat=7">Food & Snacks</a></li>
-                    <li><a href="dashboard.php?cat=2">Books & Essentials</a></li>
+                    <li><a href="dashboard.php?cat=2">Tech & Gadgets</a></li>
+                    <li><a href="dashboard.php?cat=1">Fashion & Streetwear</a></li>
+                    <li><a href="dashboard.php?cat=3">Beauty & Care</a></li>
+                    <li><a href="dashboard.php?cat=4">Food & Snacks</a></li>
+                    <li><a href="dashboard.php?cat=5">Books & Essentials</a></li>
                 </ul>
             </div>
 

@@ -15,38 +15,61 @@ $error = '';
 
 // Handle status updates
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action']) && $_POST['action'] === 'update_status') {
-    $order_id = intval($_POST['order_id'] ?? 0);
-    $status = sanitize($_POST['status'] ?? '');
-    if ($order_id > 0 && in_array($status, ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], true)) {
-        $stmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
-        $stmt->bind_param("si", $status, $order_id);
-        if ($stmt->execute()) {
-            $msg = 'Order #' . $order_id . ' status successfully updated to ' . strtoupper($status) . '.';
-        } else {
-            $error = 'Failed to update order status: ' . $conn->error;
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid security token. Please refresh and try again.';
+    } else {
+        $order_id = intval($_POST['order_id'] ?? 0);
+        $status = sanitize($_POST['status'] ?? '');
+        if ($order_id > 0 && in_array($status, ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], true)) {
+            $stmt = $conn->prepare("UPDATE orders SET status = ? WHERE id = ?");
+            $stmt->bind_param("si", $status, $order_id);
+            if ($stmt->execute()) {
+                $msg = 'Order #' . $order_id . ' status successfully updated to ' . strtoupper($status) . '.';
+            } else {
+                $error = 'Failed to update order status: ' . $conn->error;
+            }
         }
     }
 }
 
 $filter = $_GET['filter'] ?? 'all';
-$search = sanitize($_GET['q'] ?? '');
+$search = trim((string)($_GET['q'] ?? ''));
 
-$where = "1=1";
+$where_clauses = ["1=1"];
+$params = [];
+$types = "";
+
 if ($filter !== 'all' && in_array($filter, ['pending', 'processing', 'shipped', 'delivered', 'cancelled'], true)) {
-    $where .= " AND o.status = '$filter'";
+    $where_clauses[] = "o.status = ?";
+    $params[] = $filter;
+    $types .= "s";
 }
-if ($search) {
-    $where .= " AND (o.order_code LIKE '%$search%' OR o.customer_name LIKE '%$search%' OR o.phone LIKE '%$search%' OR o.city LIKE '%$search%')";
+if ($search !== '') {
+    $like = '%' . $search . '%';
+    $where_clauses[] = "(o.order_code LIKE ? OR o.customer_name LIKE ? OR o.phone LIKE ? OR o.city LIKE ?)";
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $params[] = $like;
+    $types .= "ssss";
 }
 
-// Fetch orders with items
-$orders = $conn->query("
+$orders_sql = "
     SELECT o.*,
            (SELECT COUNT(*) FROM order_items WHERE order_id = o.id) AS item_count
     FROM orders o
-    WHERE $where
+    WHERE " . implode(" AND ", $where_clauses) . "
     ORDER BY o.created_at DESC
-");
+";
+
+if (!empty($params)) {
+    $ord_stmt = $conn->prepare($orders_sql);
+    $ord_stmt->bind_param($types, ...$params);
+    $ord_stmt->execute();
+    $orders = $ord_stmt->get_result();
+} else {
+    $orders = $conn->query($orders_sql);
+}
 
 // Counts for filter tabs
 $counts = [
@@ -76,63 +99,9 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
 </head>
 <body style="background:#FAFAF9;">
 
-<div class="d-flex" style="min-height:100vh;">
+<div class="d-flex flex-column flex-md-row" style="min-height:100vh;">
 
-    <!-- ── SIDEBAR NAVIGATION ────────────────────────────────────── -->
-    <aside class="admin-sidebar-nav d-none d-md-flex">
-        <div class="px-4 py-4 border-bottom border-secondary border-opacity-25">
-            <div class="d-flex align-items-center gap-2">
-                <div class="brand-icon-box" style="width:34px;height:34px;font-size:16px;">
-                    <i class="bi bi-bag-check-fill"></i>
-                </div>
-                <div>
-                    <div class="fw-bold text-white fs-5 leading-none">
-                        Uni<span style="color:var(--accent-orange);">Market</span>
-                    </div>
-                    <span class="small text-white-50" style="font-size:11px;">Admin Console</span>
-                </div>
-            </div>
-        </div>
-
-        <nav class="py-3 flex-grow-1">
-            <a href="index.php" class="admin-nav-item">
-                <i class="bi bi-grid-1x2"></i> Dashboard
-            </a>
-            <a href="orders.php" class="admin-nav-item active">
-                <i class="bi bi-receipt"></i> Orders & Shipments
-            </a>
-            <a href="products.php" class="admin-nav-item">
-                <i class="bi bi-box-seam"></i> Products CRUD
-            </a>
-            <a href="categories.php" class="admin-nav-item">
-                <i class="bi bi-tags"></i> Categories CRUD
-            </a>
-            <a href="users.php" class="admin-nav-item">
-                <i class="bi bi-people"></i> Users & Merchants
-            </a>
-            <a href="reports.php" class="admin-nav-item">
-                <i class="bi bi-flag"></i> Reports
-                <?php if ($pending_reports > 0): ?>
-                    <span class="badge bg-danger ms-auto"><?= $pending_reports ?></span>
-                <?php endif; ?>
-            </a>
-            <a href="messages.php" class="admin-nav-item">
-                <i class="bi bi-chat-dots"></i> Inquiries
-                <?php if ($unread_messages > 0): ?>
-                    <span class="badge bg-warning text-dark ms-auto"><?= $unread_messages ?></span>
-                <?php endif; ?>
-            </a>
-        </nav>
-
-        <div class="p-3 border-top border-secondary border-opacity-25">
-            <a href="../dashboard.php" target="_blank" class="admin-nav-item py-2 px-3 rounded-2 text-white-50 mb-1">
-                <i class="bi bi-box-arrow-up-right"></i> View Live Site
-            </a>
-            <a href="../logout.php" class="admin-nav-link" style="color:#f87171;padding:10px 20px;">
-                <i class="bi bi-box-arrow-right"></i> Sign Out
-            </a>
-        </div>
-    </aside>
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <!-- ── MAIN CONTENT ──────────────────────────────────────────── -->
     <main class="flex-fill p-4" style="overflow-x:hidden;">
@@ -244,6 +213,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                             <div class="d-flex align-items-center gap-1">
                                 <!-- Status change dropdown -->
                                 <form method="POST" action="" class="d-inline">
+                                    <?= csrfField() ?>
                                     <input type="hidden" name="action" value="update_status">
                                     <input type="hidden" name="order_id" value="<?= $ord['id'] ?>">
                                     <select name="status" class="form-select form-select-sm py-1" style="font-size:12px;width:120px;" onchange="this.form.submit()">

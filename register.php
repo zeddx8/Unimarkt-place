@@ -12,31 +12,12 @@ $error   = '';
 $success = '';
 
 // Major Ghanaian Universities & Campuses + Regions
-$campuses = [
-    'University of Ghana (UG - Legon)',
-    'Kwame Nkrumah Univ of Science & Tech (KNUST - Kumasi)',
-    'University of Cape Coast (UCC - Cape Coast)',
-    'University of Professional Studies, Accra (UPSA)',
-    'Ashesi University (Berekuso)',
-    'Accra Technical University (ATU)',
-    'Kumasi Technical University (KsTU)',
-    'Cape Coast Technical University (CCTU)',
-    'Ghana Communication Technology Univ (GCTU)',
-    'GIMPA (Greenhill, Achimota)',
-    'University of Education, Winneba (UEW)',
-    'University of Mines and Technology (UMaT - Tarkwa)',
-    'Academic City University College',
-    'Pentecost University (Sowutuom)',
-    'Central University (Miotso / Dawhenya)',
-    'Ho Technical University (HTU)',
-    'Tamale Technical University (TaTU)',
-    'Greater Accra (Non-Campus / General)',
-    'Ashanti Region (Non-Campus / General)',
-    'Western Region (Non-Campus / General)',
-    'Other Ghanaian Campus / Region'
-];
+$campuses = getGhanaCampuses();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid or expired security token. Please refresh and try again.';
+    } else {
     $full_name = sanitize($_POST['full_name'] ?? '');
     $email     = sanitize($_POST['email'] ?? '');
     $password  = $_POST['password'] ?? '';
@@ -72,6 +53,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $error = 'Registration could not be completed: ' . ($stmt ? $stmt->error : $conn->error);
             }
         }
+    }
     }
 }
 ?>
@@ -223,6 +205,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endif; ?>
 
             <form method="POST" action="">
+                <?= csrfField() ?>
                 <div class="row g-3">
                     <!-- Full Name -->
                     <div class="col-12">
@@ -293,7 +276,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <!-- Confirm Password -->
                     <div class="col-md-6">
                         <label class="um-field-label">Confirm Password <span class="text-danger">*</span></label>
-                        <input type="password" name="confirm_password" class="form-control um-input" placeholder="Repeat password" required>
+                        <div class="input-group">
+                            <input type="password" name="confirm_password" id="pwConfirmReg" class="form-control um-input"
+                                   style="border-radius:12px 0 0 12px;border-right:none;" placeholder="Repeat password" required>
+                            <button type="button" class="input-group-text bg-white toggle-reg-confirm"
+                                    style="border-radius:0 12px 12px 0;border:1.5px solid var(--border-color);border-left:none;cursor:pointer;"
+                                    title="Toggle password visibility">
+                                <i class="bi bi-eye text-muted" id="pwConfirmRegIcon"></i>
+                            </button>
+                        </div>
                     </div>
 
                     <div class="col-12 mt-4">
@@ -315,19 +306,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // Show/Hide password toggle
-document.querySelector('.toggle-reg-password')?.addEventListener('click', function() {
-    const pwInput = document.getElementById('pwReg');
-    const icon = document.getElementById('pwRegIcon');
-    if (pwInput.type === 'password') {
-        pwInput.type = 'text';
-        icon.classList.remove('bi-eye');
-        icon.classList.add('bi-eye-slash');
-    } else {
-        pwInput.type = 'password';
-        icon.classList.remove('bi-eye-slash');
-        icon.classList.add('bi-eye');
-    }
-});
+function bindToggle(btnSel, inputId, iconId) {
+    document.querySelector(btnSel)?.addEventListener('click', function() {
+        const pwInput = document.getElementById(inputId);
+        const icon = document.getElementById(iconId);
+        if (!pwInput || !icon) return;
+        if (pwInput.type === 'password') {
+            pwInput.type = 'text';
+            icon.classList.remove('bi-eye');
+            icon.classList.add('bi-eye-slash');
+        } else {
+            pwInput.type = 'password';
+            icon.classList.remove('bi-eye-slash');
+            icon.classList.add('bi-eye');
+        }
+    });
+}
+bindToggle('.toggle-reg-password', 'pwReg', 'pwRegIcon');
+bindToggle('.toggle-reg-confirm', 'pwConfirmReg', 'pwConfirmRegIcon');
 </script>
 </body>
 </html>

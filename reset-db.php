@@ -6,6 +6,11 @@
 // ZERO Emojis — Professional Bootstrap Icons & Curated Unsplash Photos
 // ============================================================
 
+if (php_sapi_name() !== 'cli') {
+    http_response_code(403);
+    exit('Forbidden: This maintenance script can only be executed from the CLI.');
+}
+
 require_once __DIR__ . '/includes/db.php';
 
 // Disable reporting exceptions for manual handling

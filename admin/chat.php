@@ -81,56 +81,8 @@ $request_token = bin2hex(random_bytes(16));
     <link href="../css/style.css" rel="stylesheet">
 </head>
 <body style="background:#FAFAF9;">
-<div class="d-flex" style="min-height:100vh;">
-    <!-- ── SIDEBAR NAVIGATION ────────────────────────────────────── -->
-    <aside class="admin-sidebar-nav d-none d-md-flex">
-        <div class="px-4 py-4 border-bottom border-secondary border-opacity-25">
-            <div class="d-flex align-items-center gap-2">
-                <div class="brand-icon-box" style="width:34px;height:34px;font-size:16px;">
-                    <i class="bi bi-bag-check-fill"></i>
-                </div>
-                <div>
-                    <div class="fw-bold text-white fs-5 leading-none">
-                        Uni<span style="color:var(--accent-orange);">Market</span>
-                    </div>
-                    <span class="small text-white-50" style="font-size:11px;">Admin Console</span>
-                </div>
-            </div>
-        </div>
-
-        <nav class="py-3 flex-grow-1">
-            <a href="index.php" class="admin-nav-item">
-                <i class="bi bi-grid-1x2"></i> Dashboard
-            </a>
-            <a href="orders.php" class="admin-nav-item">
-                <i class="bi bi-receipt"></i> Orders & Shipments
-            </a>
-            <a href="products.php" class="admin-nav-item">
-                <i class="bi bi-box-seam"></i> Products CRUD
-            </a>
-            <a href="categories.php" class="admin-nav-item">
-                <i class="bi bi-tags"></i> Categories CRUD
-            </a>
-            <a href="users.php" class="admin-nav-item">
-                <i class="bi bi-people"></i> Users & Merchants
-            </a>
-            <a href="reports.php" class="admin-nav-item">
-                <i class="bi bi-flag"></i> Reports
-            </a>
-            <a href="messages.php" class="admin-nav-item active">
-                <i class="bi bi-chat-dots"></i> Inquiries
-            </a>
-        </nav>
-
-        <div class="p-3 border-top border-secondary border-opacity-25">
-            <a href="../dashboard.php" class="btn btn-outline-light btn-sm w-100 mb-2 text-start">
-                <i class="bi bi-shop me-1"></i> Live Storefront
-            </a>
-            <a href="../logout.php" class="btn btn-outline-danger btn-sm w-100 text-start">
-                <i class="bi bi-box-arrow-right me-1"></i> Sign Out
-            </a>
-        </div>
-    </aside>
+<div class="d-flex flex-column flex-md-row" style="min-height:100vh;">
+    <?php include __DIR__ . '/includes/sidebar.php'; ?>
 
     <main class="flex-fill p-3 p-md-4">
         <a href="messages.php" class="text-decoration-none text-muted d-inline-flex align-items-center gap-2 mb-3">
@@ -153,7 +105,7 @@ $request_token = bin2hex(random_bytes(16));
             <div class="d-flex align-items-center gap-3 p-3" style="border-bottom:1.5px solid var(--border-stone);">
                 <div class="seller-avatar" style="width:42px;height:42px;font-size:14px;">
                     <?php if ($customer['avatar']): ?>
-                        <img src="../uploads/<?= sanitize($customer['avatar']) ?>" alt="">
+                        <img src="<?= htmlspecialchars(getAdminImageUrl($customer['avatar'])) ?>" alt="" onerror="this.onerror=null; this.style.display='none';">
                     <?php else: ?>
                         <?= getAvatar($customer['full_name']) ?>
                     <?php endif; ?>

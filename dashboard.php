@@ -119,20 +119,23 @@ include 'includes/header.php';
                            value="<?= isset($_GET['q']) ? sanitize($_GET['q']) : '' ?>"
                            autocomplete="off">
 
-                    <select name="region" class="form-select border-0 bg-light d-none d-md-block" style="max-width:180px;font-size:13px;font-weight:600;">
-                        <option value="">All Campuses & Hubs</option>
-                        <option value="Legon" <?= (isset($_GET['region']) && strpos($_GET['region'],'Legon')!==false)?'selected':'' ?>>UG - Legon</option>
-                        <option value="KNUST" <?= (isset($_GET['region']) && strpos($_GET['region'],'KNUST')!==false)?'selected':'' ?>>KNUST - Kumasi</option>
-                        <option value="UCC" <?= (isset($_GET['region']) && strpos($_GET['region'],'UCC')!==false)?'selected':'' ?>>UCC - Cape Coast</option>
-                        <option value="Cape Coast Technical University (CCTU)" <?= (isset($_GET['region']) && (strpos($_GET['region'],'CCTU')!==false || strpos($_GET['region'],'Cape Coast Technical')!==false))?'selected':'' ?>>Cape Coast Technical (CCTU)</option>
-                        <option value="UPSA" <?= (isset($_GET['region']) && strpos($_GET['region'],'UPSA')!==false)?'selected':'' ?>>UPSA - Accra</option>
-                        <option value="Ashesi" <?= (isset($_GET['region']) && strpos($_GET['region'],'Ashesi')!==false)?'selected':'' ?>>Ashesi University</option>
-                        <option value="Greater Accra" <?= (isset($_GET['region']) && strpos($_GET['region'],'Accra')!==false && strpos($_GET['region'],'UPSA')===false)?'selected':'' ?>>Greater Accra Hub</option>
-                        <option value="Ashanti" <?= (isset($_GET['region']) && strpos($_GET['region'],'Ashanti')!==false && strpos($_GET['region'],'KNUST')===false)?'selected':'' ?>>Ashanti Hub</option>
+                    <select name="region" class="form-select border-0 bg-light d-none d-md-block" style="max-width:190px;font-size:13px;font-weight:600;">
+                        <option value="">All Campuses &amp; Hubs</option>
+                        <?php foreach ($regions as $r): ?>
+                        <option value="<?= htmlspecialchars($r) ?>" <?= (isset($_GET['region']) && $_GET['region'] === $r) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($r) ?>
+                        </option>
+                        <?php endforeach; ?>
                     </select>
 
                     <?php if (!empty($_GET['cat'])): ?>
                         <input type="hidden" name="cat" value="<?= (int)$_GET['cat'] ?>">
+                    <?php endif; ?>
+                    <?php if (!empty($_GET['condition'])): ?>
+                        <input type="hidden" name="condition" value="<?= htmlspecialchars($_GET['condition']) ?>">
+                    <?php endif; ?>
+                    <?php if (!empty($_GET['sort'])): ?>
+                        <input type="hidden" name="sort" value="<?= htmlspecialchars($_GET['sort']) ?>">
                     <?php endif; ?>
 
                     <button type="submit" class="btn btn-orange px-4 py-2 fw-bold text-nowrap">
@@ -191,8 +194,13 @@ include 'includes/header.php';
     <div class="container">
         <div class="d-flex align-items-center justify-content-between gap-3 flex-wrap">
             <!-- Category Chips -->
+            <?php
+            $allCatQuery = $_GET;
+            unset($allCatQuery['cat']);
+            $allCatHref = 'dashboard.php' . (!empty($allCatQuery) ? '?' . http_build_query($allCatQuery) : '');
+            ?>
             <div class="cat-scroll-container d-flex gap-2 overflow-auto pb-1 flex-nowrap" style="scrollbar-width:none;-ms-overflow-style:none;">
-                <a href="dashboard.php<?= !empty($_GET['region']) ? '?region='.urlencode($_GET['region']) : '' ?>"
+                <a href="<?= htmlspecialchars($allCatHref) ?>"
                    class="cat-chip <?= empty($_GET['cat']) ? 'active' : '' ?>">
                     <i class="bi bi-grid-fill me-1"></i> All Ventures
                 </a>
@@ -215,26 +223,26 @@ include 'includes/header.php';
             </div>
 
             <!-- Filters & Sort -->
+            <?php
+            $baseNoRegion = $_GET; unset($baseNoRegion['region']);
+            $baseNoCond   = $_GET; unset($baseNoCond['condition']);
+            $baseNoSort   = $_GET; unset($baseNoSort['sort']);
+            ?>
             <div class="d-flex align-items-center gap-2 ms-auto flex-wrap">
                 <!-- Campus Filter Dropdown -->
-                <select class="form-select um-input py-2" style="font-size:13px;width:auto;"
-                        onchange="location='dashboard.php?<?= http_build_query(array_merge($_GET, ['region'=>''])) ?>&region='+encodeURIComponent(this.value)">
+                <select class="form-select um-input py-2" style="font-size:13px;width:auto;max-width:220px;"
+                        onchange="const u=new URL(location.href); this.value ? u.searchParams.set('region', this.value) : u.searchParams.delete('region'); location=u.toString();">
                     <option value="">All Campuses &amp; Hubs</option>
-                    <option value="University of Ghana (UG - Legon)" <?= (isset($_GET['region']) && strpos($_GET['region'],'Legon')!==false)?'selected':'' ?>>UG - Legon</option>
-                    <option value="Kwame Nkrumah Univ of Science & Tech (KNUST - Kumasi)" <?= (isset($_GET['region']) && strpos($_GET['region'],'KNUST')!==false)?'selected':'' ?>>KNUST - Kumasi</option>
-                    <option value="University of Cape Coast (UCC - Cape Coast)" <?= (isset($_GET['region']) && strpos($_GET['region'],'UCC')!==false)?'selected':'' ?>>UCC - Cape Coast</option>
-                    <option value="Cape Coast Technical University (CCTU)" <?= (isset($_GET['region']) && (strpos($_GET['region'],'CCTU')!==false || strpos($_GET['region'],'Cape Coast Technical')!==false))?'selected':'' ?>>Cape Coast Technical (CCTU)</option>
-                    <option value="University of Professional Studies, Accra (UPSA)" <?= (isset($_GET['region']) && strpos($_GET['region'],'UPSA')!==false)?'selected':'' ?>>UPSA - Accra</option>
-                    <option value="Ashesi University (Berekuso)" <?= (isset($_GET['region']) && strpos($_GET['region'],'Ashesi')!==false)?'selected':'' ?>>Ashesi University</option>
-                    <option value="Accra Technical University (ATU)" <?= (isset($_GET['region']) && strpos($_GET['region'],'ATU')!==false)?'selected':'' ?>>ATU - Accra</option>
-                    <option value="Kumasi Technical University (KsTU)" <?= (isset($_GET['region']) && strpos($_GET['region'],'KsTU')!==false)?'selected':'' ?>>KsTU - Kumasi</option>
-                    <option value="Ho Technical University (HTU)" <?= (isset($_GET['region']) && strpos($_GET['region'],'HTU')!==false)?'selected':'' ?>>HTU - Ho</option>
-                    <option value="Tamale Technical University (TaTU)" <?= (isset($_GET['region']) && strpos($_GET['region'],'TaTU')!==false)?'selected':'' ?>>TaTU - Tamale</option>
+                    <?php foreach ($regions as $r): ?>
+                    <option value="<?= htmlspecialchars($r) ?>" <?= (isset($_GET['region']) && ($_GET['region'] === $r || stripos($r, $_GET['region']) !== false && strlen($_GET['region']) >= 3)) ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($r) ?>
+                    </option>
+                    <?php endforeach; ?>
                 </select>
 
                 <!-- Condition Dropdown -->
                 <select class="form-select um-input py-2" style="font-size:13px;width:auto;"
-                        onchange="location='dashboard.php?<?= http_build_query(array_merge($_GET, ['condition'=>''])) ?>&condition='+this.value">
+                        onchange="const u=new URL(location.href); this.value ? u.searchParams.set('condition', this.value) : u.searchParams.delete('condition'); location=u.toString();">
                     <option value="">All Conditions</option>
                     <option value="New" <?= (($_GET['condition']??'')==='New')?'selected':'' ?>>Brand New / Original</option>
                     <option value="Like New" <?= (($_GET['condition']??'')==='Like New')?'selected':'' ?>>Like New / Mint</option>
@@ -244,7 +252,7 @@ include 'includes/header.php';
 
                 <!-- Sort Dropdown -->
                 <select class="form-select um-input py-2" style="font-size:13px;width:auto;"
-                        onchange="location='dashboard.php?<?= http_build_query(array_merge($_GET, ['sort'=>''])) ?>&sort='+this.value">
+                        onchange="const u=new URL(location.href); this.value ? u.searchParams.set('sort', this.value) : u.searchParams.delete('sort'); location=u.toString();">
                     <option value="newest" <?= ($_GET['sort']??'')==='newest'?'selected':'' ?>>Newest Drops</option>
                     <option value="popular" <?= ($_GET['sort']??'')==='popular'?'selected':'' ?>>Trending on Campus</option>
                     <option value="price_asc" <?= ($_GET['sort']??'')==='price_asc'?'selected':'' ?>>Price: Low to High</option>
@@ -282,7 +290,7 @@ include 'includes/header.php';
             <h3 class="fw-bold mb-1" style="font-size:22px;">Campus Ventures & Marketplace Drops</h3>
             <p class="text-muted small mb-0">Browse student-owned brand releases, gear, study essentials, and verified listings across Ghana</p>
         </div>
-        <span class="badge bg-light text-muted border px-3 py-2 fw-semibold" style="font-size:12.5px;">
+        <span id="activeListingsCount" class="badge bg-light text-muted border px-3 py-2 fw-semibold" style="font-size:12.5px;">
             <?= $products ? $products->num_rows : 0 ?> listings active
         </span>
     </div>
@@ -298,6 +306,16 @@ include 'includes/header.php';
         </a>
     </div>
     <?php else: ?>
+    <!-- Client-Side Empty Search State -->
+    <div id="liveSearchEmptyState" class="text-center py-5 my-4" style="display:none;">
+        <div style="font-size:54px;margin-bottom:12px;" class="text-muted"><i class="bi bi-search"></i></div>
+        <h4 class="fw-bold text-dark mb-2">No matching listings found</h4>
+        <p class="text-muted small mb-4" style="max-width:380px;margin:0 auto 20px;">Try adjusting your search keywords or resetting your filters.</p>
+        <a href="dashboard.php" class="btn btn-navy px-4 py-2">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Reset Filters
+        </a>
+    </div>
+
     <!-- Responsive Product Grid -->
     <div class="row g-3 g-md-4">
         <?php while ($p = $products->fetch_assoc()):

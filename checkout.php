@@ -18,44 +18,143 @@ $current_user = $user_stmt->get_result()->fetch_assoc();
 $regions = getGhanaCampuses();
 $order_placed = false;
 $order_info = [];
+$checkout_error = '';
 
 // Handle order submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
-    $region           = sanitize($_POST['region'] ?? 'Greater Accra Region');
-    $city             = sanitize($_POST['city'] ?? 'Accra');
-    $delivery_address = sanitize($_POST['delivery_address'] ?? 'Home / Office Address');
-    $phone            = sanitize($_POST['phone'] ?? $current_user['phone']);
-    $payment_method   = sanitize($_POST['payment_method'] ?? 'mtn_momo');
-    $momo_number      = sanitize($_POST['momo_number'] ?? $phone);
-    $subtotal         = floatval($_POST['cart_subtotal'] ?? 0);
-    $discount         = floatval($_POST['cart_discount'] ?? 0);
-    $delivery_fee     = 25.00;
-    $total            = floatval($_POST['cart_total'] ?? ($subtotal + $delivery_fee - $discount));
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $checkout_error = 'Invalid or expired security token. Please refresh and try again.';
+    } else {
+        $region           = sanitize($_POST['region'] ?? 'Greater Accra Region');
+        $city             = sanitize($_POST['city'] ?? 'Accra');
+        $delivery_address = sanitize($_POST['delivery_address'] ?? 'Home / Office Address');
+        $phone            = sanitize($_POST['phone'] ?? ($current_user['phone'] ?? ''));
+        $payment_method   = sanitize($_POST['payment_method'] ?? 'mtn_momo');
+        $allowed_methods  = ['mtn_momo', 'telecel_cash', 'at_money', 'card', 'cash_on_delivery'];
+        if (!in_array($payment_method, $allowed_methods, true)) {
+            $payment_method = 'mtn_momo';
+        }
+        $momo_number = ($payment_method === 'card' || $payment_method === 'cash_on_delivery')
+            ? ''
+            : sanitize($_POST['momo_number'] ?? $phone);
 
-    $order_code = 'UM-GH-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
+        // Parse & validate cart items from authoritative DB prices
+        $raw_items = json_decode($_POST['cart_items'] ?? '[]', true);
+        if (!is_array($raw_items) || empty($raw_items)) {
+            $raw_items = $_SESSION['cart'] ?? [];
+        }
 
-    // Insert order record
-    $order_stmt = $conn->prepare("
-        INSERT INTO orders (order_code, user_id, region, city, delivery_address, phone, payment_method, momo_number, subtotal, delivery_fee, discount, total, status)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing')
-    ");
+        $validated_items = [];
+        $subtotal = 0.00;
+        $prod_stmt = $conn->prepare("SELECT id, seller_id, title, price, status FROM products WHERE id = ? LIMIT 1");
 
-    if ($order_stmt) {
-        $order_stmt->bind_param("sissssssddds", $order_code, $uid, $region, $city, $delivery_address, $phone, $payment_method, $momo_number, $subtotal, $delivery_fee, $discount, $total);
-        $order_stmt->execute();
+        if (is_array($raw_items) && $prod_stmt) {
+            foreach ($raw_items as $entry) {
+                $pid = (int)($entry['id'] ?? 0);
+                $qty = max(1, min(99, (int)($entry['quantity'] ?? 1)));
+                if ($pid < 1) continue;
+
+                $prod_stmt->bind_param("i", $pid);
+                $prod_stmt->execute();
+                $prod = $prod_stmt->get_result()->fetch_assoc();
+                if (!$prod || $prod['status'] !== 'available') {
+                    $checkout_error = 'One or more items in your cart are no longer available.';
+                    break;
+                }
+                if ((int)$prod['seller_id'] === $uid) {
+                    $checkout_error = 'You cannot purchase your own listing.';
+                    break;
+                }
+                $unit_price = round((float)$prod['price'], 2);
+                $subtotal = round($subtotal + ($unit_price * $qty), 2);
+                $validated_items[] = [
+                    'product_id' => $pid,
+                    'title'      => $prod['title'],
+                    'price'      => $unit_price,
+                    'quantity'   => $qty,
+                ];
+            }
+        }
+
+        if (empty($checkout_error) && empty($validated_items)) {
+            $checkout_error = 'Your cart is empty. Please add available items before checking out.';
+        }
+
+        if (empty($checkout_error) && (empty($city) || empty($delivery_address) || empty($phone))) {
+            $checkout_error = 'Please fill in all required campus delivery and phone details.';
+        }
+
+        if (empty($checkout_error)) {
+            // Server-side promo validation
+            $promo_code = strtoupper(trim((string)($_POST['promo_code'] ?? '')));
+            $discount = in_array($promo_code, ['UNIMARKET20', 'WELCOMEGH', 'GHANA2026'], true)
+                ? min($subtotal, 20.00)
+                : 0.00;
+            $delivery_fee = 25.00;
+            $total        = max(0.00, round($subtotal + $delivery_fee - $discount, 2));
+            $customer_name = $current_user['full_name'] ?? ($_SESSION['full_name'] ?? 'UniMarket Buyer');
+            $order_code   = 'UM-GH-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
+
+            $conn->begin_transaction();
+            try {
+                $order_stmt = $conn->prepare("
+                    INSERT INTO orders (order_code, user_id, customer_name, region, city, delivery_address, phone, payment_method, momo_number, subtotal, delivery_fee, discount, total, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing')
+                ");
+                if (!$order_stmt) {
+                    throw new Exception('Order preparation failed.');
+                }
+                $order_stmt->bind_param(
+                    "sisssssssdddd",
+                    $order_code,
+                    $uid,
+                    $customer_name,
+                    $region,
+                    $city,
+                    $delivery_address,
+                    $phone,
+                    $payment_method,
+                    $momo_number,
+                    $subtotal,
+                    $delivery_fee,
+                    $discount,
+                    $total
+                );
+                if (!$order_stmt->execute()) {
+                    throw new Exception('Order insert failed: ' . $order_stmt->error);
+                }
+
+                $new_order_id = (int)$conn->insert_id;
+                $item_stmt = $conn->prepare("INSERT INTO order_items (order_id, product_id, title, price, quantity) VALUES (?, ?, ?, ?, ?)");
+                if (!$item_stmt) {
+                    throw new Exception('Order items preparation failed.');
+                }
+                foreach ($validated_items as $vi) {
+                    $item_stmt->bind_param("iisdi", $new_order_id, $vi['product_id'], $vi['title'], $vi['price'], $vi['quantity']);
+                    if (!$item_stmt->execute()) {
+                        throw new Exception('Order item insert failed: ' . $item_stmt->error);
+                    }
+                }
+
+                $conn->commit();
+                $_SESSION['cart'] = [];
+                $order_placed = true;
+                $order_info = [
+                    'order_code'       => $order_code,
+                    'region'           => $region,
+                    'city'             => $city,
+                    'delivery_address' => $delivery_address,
+                    'phone'            => $phone,
+                    'payment_method'   => $payment_method,
+                    'momo_number'      => $momo_number,
+                    'total'            => $total,
+                ];
+            } catch (Exception $e) {
+                $conn->rollback();
+                $checkout_error = 'Could not complete your order. Please try again.';
+            }
+        }
     }
-
-    $order_placed = true;
-    $order_info = [
-        'order_code'       => $order_code,
-        'region'           => $region,
-        'city'             => $city,
-        'delivery_address' => $delivery_address,
-        'phone'            => $phone,
-        'payment_method'   => $payment_method,
-        'momo_number'      => $momo_number,
-        'total'            => $total,
-    ];
 }
 
 include 'includes/header.php';
@@ -123,8 +222,8 @@ include 'includes/header.php';
             <a href="dashboard.php" class="btn btn-navy px-4 py-3">
                 <i class="bi bi-arrow-left me-1"></i> Return to Shopping
             </a>
-            <a href="chat.php" class="btn btn-emerald px-4 py-3">
-                <i class="bi bi-chat-left-text me-1"></i> View Order Status
+            <a href="orders.php" class="btn btn-emerald px-4 py-3">
+                <i class="bi bi-receipt me-1"></i> View Order Status
             </a>
         </div>
     </div>
@@ -140,10 +239,17 @@ include 'includes/header.php';
 
     <?php else: ?>
     <!-- ── CHECKOUT FORM ─────────────────────────────────────────── -->
+    <?php if (!empty($checkout_error)): ?>
+    <div class="alert alert-danger alert-dismissible fade show border-0 shadow-sm mb-4" role="alert">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i><?= htmlspecialchars($checkout_error) ?>
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    <?php endif; ?>
     <div class="row g-4">
         <!-- Left: Destination & Payment -->
         <div class="col-lg-7">
             <form method="POST" id="checkoutForm">
+                <?= csrfField() ?>
                 <!-- Section 1: Delivery Address -->
                 <div class="um-card p-4 mb-4">
                     <div class="d-flex align-items-center gap-2 mb-3 pb-2 border-bottom">
@@ -255,10 +361,9 @@ include 'includes/header.php';
                     </div>
                 </div>
 
-                <!-- Hidden inputs for form calculation -->
-                <input type="hidden" name="cart_subtotal" id="hiddenSubtotal" value="0">
-                <input type="hidden" name="cart_discount" id="hiddenDiscount" value="0">
-                <input type="hidden" name="cart_total" id="hiddenTotal" value="0">
+                <!-- Hidden inputs for form submission -->
+                <input type="hidden" name="cart_items" id="hiddenCartItems" value="[]">
+                <input type="hidden" name="promo_code" id="hiddenPromoCode" value="">
                 <input type="hidden" name="place_order" value="1">
 
                 <button type="submit" id="btnSubmitOrder" class="btn btn-orange w-100 py-3 fw-bold fs-6">
@@ -319,22 +424,23 @@ document.addEventListener('DOMContentLoaded', function () {
     const itemsContainer = document.getElementById('checkoutItemsList');
     const subtotalEl = document.getElementById('checkoutSubtotal');
     const totalEl = document.getElementById('checkoutTotalAmount');
-    const hiddenSubtotal = document.getElementById('hiddenSubtotal');
-    const hiddenDiscount = document.getElementById('hiddenDiscount');
-    const hiddenTotal = document.getElementById('hiddenTotal');
+    const hiddenCartItems = document.getElementById('hiddenCartItems');
+    const hiddenPromoCode = document.getElementById('hiddenPromoCode');
     const discountRow = document.getElementById('checkoutDiscountRow');
     const discountAmount = document.getElementById('checkoutDiscountAmount');
 
     let total = 0;
     let itemsHtml = '';
+    const esc = window.escapeHtml || (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])));
 
     items.forEach(item => {
-        const line = item.price * item.quantity;
+        const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+        const line = (Number(item.price) || 0) * qty;
         total += line;
         itemsHtml += `
             <div class="d-flex justify-content-between align-items-center mb-2 small">
                 <div class="text-truncate me-2" style="max-width:200px;">
-                    <span class="fw-bold text-dark">${item.quantity}x</span> ${item.title}
+                    <span class="fw-bold text-dark">${qty}x</span> ${esc(item.title)}
                 </div>
                 <span class="fw-bold">${window.formatGHS(line)}</span>
             </div>
@@ -347,9 +453,15 @@ document.addEventListener('DOMContentLoaded', function () {
     if (subtotalEl) subtotalEl.textContent = window.formatGHS(total);
     if (totalEl) totalEl.textContent = window.formatGHS(finalTotal);
 
-    if (hiddenSubtotal) hiddenSubtotal.value = total.toFixed(2);
-    if (hiddenDiscount) hiddenDiscount.value = discount.toFixed(2);
-    if (hiddenTotal) hiddenTotal.value = finalTotal.toFixed(2);
+    if (hiddenCartItems) {
+        hiddenCartItems.value = JSON.stringify(items.map(i => ({
+            id: Number(i.id),
+            quantity: Math.max(1, parseInt(i.quantity, 10) || 1)
+        })));
+    }
+    if (hiddenPromoCode) {
+        hiddenPromoCode.value = sessionStorage.getItem('unimarket_promo_code') || '';
+    }
 
     if (discount > 0 && discountRow && discountAmount) {
         discountRow.style.display = 'flex';

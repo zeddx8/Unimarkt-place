@@ -12,12 +12,46 @@ $page_title = 'Shopping Cart';
 if (isset($_GET['action']) && $_GET['action'] === 'sync' && $_SERVER['REQUEST_METHOD'] === 'POST') {
     $raw = file_get_contents('php://input');
     $data = json_decode($raw, true);
+    header('Content-Type: application/json');
     if (isset($data['cart']) && is_array($data['cart'])) {
-        $_SESSION['cart'] = $data['cart'];
-        header('Content-Type: application/json');
-        echo json_encode(['status' => 'ok', 'count' => count($_SESSION['cart'])]);
+        $uid = (int)$_SESSION['user_id'];
+        $validated_cart = [];
+        $stmt = $conn->prepare("
+            SELECT p.id, p.seller_id, p.title, p.price, p.image, p.region, p.status, c.icon AS cat_icon, u.full_name AS seller_name
+            FROM products p
+            JOIN categories c ON p.category_id = c.id
+            JOIN users u ON p.seller_id = u.id
+            WHERE p.id = ? LIMIT 1
+        ");
+        if ($stmt) {
+            foreach ($data['cart'] as $entry) {
+                $pid = (int)($entry['id'] ?? 0);
+                $qty = max(1, min(99, (int)($entry['quantity'] ?? 1)));
+                if ($pid < 1) continue;
+                $stmt->bind_param("i", $pid);
+                $stmt->execute();
+                $row = $stmt->get_result()->fetch_assoc();
+                if ($row && $row['status'] === 'available' && (int)$row['seller_id'] !== $uid) {
+                    $validated_cart[] = [
+                        'id'       => (int)$row['id'],
+                        'title'    => $row['title'],
+                        'price'    => (float)$row['price'],
+                        'image'    => $row['image'] ?? '',
+                        'cat_icon' => $row['cat_icon'] ?? 'bi-bag',
+                        'seller'   => $row['seller_name'] ?? 'Merchant',
+                        'region'   => $row['region'] ?? 'Ghana Campus',
+                        'quantity' => $qty,
+                    ];
+                }
+            }
+        }
+        $_SESSION['cart'] = $validated_cart;
+        echo json_encode(['status' => 'ok', 'count' => count($validated_cart), 'cart' => $validated_cart]);
         exit();
     }
+    http_response_code(400);
+    echo json_encode(['status' => 'error']);
+    exit();
 }
 
 // Remove item action fallback
@@ -156,11 +190,15 @@ document.addEventListener('DOMContentLoaded', function () {
                 promoNotice.textContent = 'Coupon applied! GH₵ 20.00 discount activated.';
                 promoNotice.style.display = 'block';
                 sessionStorage.setItem('unimarket_promo_discount', '20.00');
+                sessionStorage.setItem('unimarket_promo_code', code);
                 renderFullCartPage();
             } else if (code) {
                 promoNotice.className = 'small text-danger mt-1';
                 promoNotice.textContent = 'Invalid promo code. Try UNIMARKET20.';
                 promoNotice.style.display = 'block';
+                sessionStorage.removeItem('unimarket_promo_discount');
+                sessionStorage.removeItem('unimarket_promo_code');
+                renderFullCartPage();
             }
         });
     }
@@ -200,9 +238,12 @@ function renderFullCartPage() {
 
     let rowsHtml = '';
     let total = 0;
+    const esc = window.escapeHtml || (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])));
 
     items.forEach(item => {
-        const lineTotal = item.price * item.quantity;
+        const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
+        const unitPrice = Number(item.price) || 0;
+        const lineTotal = unitPrice * qty;
         total += lineTotal;
         const fallbackImg = 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&auto=format&fit=crop&q=80';
         let resolvedSrc = '';
@@ -211,9 +252,13 @@ function renderFullCartPage() {
                 ? window.resolveImageUrl(item.image)
                 : (item.image.startsWith('http') ? item.image : 'uploads/' + item.image.replace(/^uploads\//i, ''));
         }
+        const safeTitle = esc(item.title);
+        const safeSeller = esc(item.seller || 'Merchant');
+        const safeRegion = esc(item.region || 'Nationwide');
+        const safeIcon = esc(item.cat_icon || 'bi-box');
         const imgTag = resolvedSrc
-            ? `<img src="${resolvedSrc}" alt="${item.title}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #E2E8F0;" onerror="this.onerror=null;this.src='${fallbackImg}';">`
-            : `<div style="width:54px;height:54px;background:#F1F5F9;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;">${item.cat_icon ? ('<i class="bi ' + item.cat_icon + ' text-secondary fs-4"></i>') : '<i class="bi bi-box text-secondary fs-4"></i>'}</div>`;
+            ? `<img src="${esc(resolvedSrc)}" alt="${safeTitle}" style="width:54px;height:54px;object-fit:cover;border-radius:8px;border:1px solid #E2E8F0;" onerror="this.onerror=null;this.src='${fallbackImg}';">`
+            : `<div style="width:54px;height:54px;background:#F1F5F9;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:24px;">${item.cat_icon ? ('<i class="bi ' + safeIcon + ' text-secondary fs-4"></i>') : '<i class="bi bi-box text-secondary fs-4"></i>'}</div>`;
 
         rowsHtml += `
             <tr>
@@ -221,22 +266,22 @@ function renderFullCartPage() {
                     <div class="d-flex align-items-center gap-3">
                         ${imgTag}
                         <div>
-                            <div class="fw-bold text-dark" style="font-size:14.5px;">${item.title}</div>
-                            <div class="text-muted small">${item.region || 'Nationwide'} · Store: ${item.seller || 'Merchant'}</div>
+                            <div class="fw-bold text-dark" style="font-size:14.5px;">${safeTitle}</div>
+                            <div class="text-muted small">${safeRegion} · Store: ${safeSeller}</div>
                         </div>
                     </div>
                 </td>
-                <td class="fw-bold">${window.formatGHS(item.price)}</td>
+                <td class="fw-bold">${window.formatGHS(unitPrice)}</td>
                 <td class="text-center">
                     <div class="d-inline-flex align-items-center gap-2 bg-light border rounded-3 p-1">
-                        <button type="button" class="btn btn-sm btn-link text-dark p-0 px-1 text-decoration-none fw-bold" onclick="updateQty(${item.id}, -1)">−</button>
-                        <span class="fw-bold px-2">${item.quantity}</span>
-                        <button type="button" class="btn btn-sm btn-link text-dark p-0 px-1 text-decoration-none fw-bold" onclick="updateQty(${item.id}, 1)">+</button>
+                        <button type="button" class="btn btn-sm btn-link text-dark p-0 px-1 text-decoration-none fw-bold" onclick="updateQty(${Number(item.id)}, -1)">−</button>
+                        <span class="fw-bold px-2">${qty}</span>
+                        <button type="button" class="btn btn-sm btn-link text-dark p-0 px-1 text-decoration-none fw-bold" onclick="updateQty(${Number(item.id)}, 1)">+</button>
                     </div>
                 </td>
                 <td class="fw-bold text-dark">${window.formatGHS(lineTotal)}</td>
                 <td class="text-end">
-                    <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeCartItem(${item.id})" title="Remove">
+                    <button type="button" class="btn btn-sm btn-outline-danger border-0" onclick="removeCartItem(${Number(item.id)})" title="Remove">
                         <i class="bi bi-trash3"></i>
                     </button>
                 </td>

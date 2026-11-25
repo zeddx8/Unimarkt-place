@@ -24,6 +24,9 @@ if ($u_res && $u_row = $u_res->fetch_assoc()) {
 }
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid or expired security token. Please refresh and try again.';
+    } else {
     $title      = sanitize($_POST['title'] ?? '');
     $price      = floatval($_POST['price'] ?? 0);
     $cat_id     = intval($_POST['category_id'] ?? 0);
@@ -89,6 +92,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         }
     }
+    }
 }
 
 $categories = $conn->query("SELECT * FROM categories ORDER BY id ASC");
@@ -122,6 +126,7 @@ include 'includes/header.php';
     <?php endif; ?>
 
     <form method="POST" action="" enctype="multipart/form-data">
+        <?= csrfField() ?>
         <div class="um-product-card p-4 p-md-5">
 
             <!-- Photo Upload Area -->

@@ -21,6 +21,9 @@ $user = $stmt->get_result()->fetch_assoc();
 $regions = getGhanaCampuses();
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (!verifyCsrfToken($_POST['csrf_token'] ?? '')) {
+        $error = 'Invalid or expired security token. Please refresh and try again.';
+    } else {
     $full_name = sanitize($_POST['full_name'] ?? '');
     $phone     = sanitize($_POST['phone'] ?? '');
     $region    = sanitize($_POST['region'] ?? 'Greater Accra Region');
@@ -91,6 +94,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $error = 'Could not update profile: ' . ($pu ? $pu->error : $conn->error);
         }
     }
+    }
 }
 
 // User Metrics
@@ -126,8 +130,9 @@ include 'includes/header.php';
     <!-- Profile Header Card -->
     <div class="um-product-card p-4 mb-4 d-flex align-items-center gap-4 flex-wrap">
         <div class="seller-avatar" style="width:84px;height:84px;font-size:32px;flex-shrink:0;">
-            <img class="avatar-preview" src="<?= $user['avatar'] ? 'uploads/' . htmlspecialchars($user['avatar']) : '' ?>" alt="" style="<?= $user['avatar'] ? '' : 'display:none;' ?>">
-            <span class="avatar-fallback" style="<?= $user['avatar'] ? 'display:none;' : '' ?>"><?= getAvatar($user['full_name']) ?></span>
+            <?php $avatarUrl = !empty($user['avatar']) ? getProductImageUrl($user['avatar']) : ''; ?>
+            <img class="avatar-preview" src="<?= htmlspecialchars($avatarUrl) ?>" alt="" style="<?= $avatarUrl ? '' : 'display:none;' ?>">
+            <span class="avatar-fallback" style="<?= $avatarUrl ? 'display:none;' : '' ?>"><?= getAvatar($user['full_name']) ?></span>
         </div>
         <div class="flex-grow-1">
             <h4 class="fw-bold mb-1" style="color:var(--navy-deep);">
@@ -167,6 +172,7 @@ include 'includes/header.php';
 
     <!-- Edit Form -->
     <form method="POST" enctype="multipart/form-data">
+        <?= csrfField() ?>
         <div class="um-product-card p-4 mb-4">
             <h6 class="fw-bold text-uppercase text-muted mb-3" style="font-size:12px;letter-spacing:0.8px;">Personal & Campus Delivery Details</h6>
 
@@ -175,8 +181,8 @@ include 'includes/header.php';
                 <label class="um-label">Profile Photo</label>
                 <div class="d-flex align-items-center gap-3">
                     <div class="seller-avatar" style="width:60px;height:60px;font-size:22px;">
-                        <img class="avatar-preview" src="<?= $user['avatar'] ? 'uploads/' . htmlspecialchars($user['avatar']) : '' ?>" alt="" style="<?= $user['avatar'] ? '' : 'display:none;' ?>">
-                        <span class="avatar-fallback" style="<?= $user['avatar'] ? 'display:none;' : '' ?>"><?= getAvatar($user['full_name']) ?></span>
+                        <img class="avatar-preview" src="<?= htmlspecialchars($avatarUrl) ?>" alt="" style="<?= $avatarUrl ? '' : 'display:none;' ?>">
+                        <span class="avatar-fallback" style="<?= $avatarUrl ? 'display:none;' : '' ?>"><?= getAvatar($user['full_name']) ?></span>
                     </div>
                     <div>
                         <label for="avatar" class="btn btn-outline-secondary btn-sm px-3 py-2 mb-0" style="border-radius:10px;cursor:pointer;">

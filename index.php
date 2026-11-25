@@ -12,7 +12,7 @@ if (isLoggedIn()) {
     exit();
 }
 
-$error      = '';
+$error      = !empty($_GET['banned']) ? 'Your account has been suspended or is no longer active. Please contact student support.' : '';
 $email_val  = '';
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
