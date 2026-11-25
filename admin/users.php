@@ -23,6 +23,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'], $_POST['use
             $st->bind_param("i", $target_id);
             $st->execute();
             header('Location: users.php?msg=verified'); exit();
+        } elseif ($action === 'delete' && $target_id !== (int)$_SESSION['user_id']) {
+            $st = $conn->prepare("DELETE FROM users WHERE id=? AND is_admin=0");
+            $st->bind_param("i", $target_id);
+            $st->execute();
+            header('Location: users.php?msg=deleted'); exit();
         }
     }
 }
@@ -66,9 +71,17 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
         <h3 class="fw-bold mb-1" style="color:var(--brand-slate);">Users & Merchant Accounts</h3>
         <p class="text-muted small mb-4">Manage verified buyers and merchants across all regions in Ghana</p>
 
-        <?php if (isset($_GET['msg'])): ?>
+        <?php if (isset($_GET['msg'])):
+            $msg_map = [
+                'banned'   => 'User account has been banned.',
+                'unbanned' => 'User account has been unbanned.',
+                'verified' => 'User account has been verified.',
+                'deleted'  => 'User/merchant account and associated data permanently deleted.',
+            ];
+            $msg_text = $msg_map[$_GET['msg']] ?? 'Action completed successfully.';
+        ?>
         <div class="alert alert-success alert-dismissible fade show border-0 shadow-sm mb-3">
-            <i class="bi bi-check-circle-fill me-2"></i>Action completed successfully.
+            <i class="bi bi-check-circle-fill me-2"></i><?= htmlspecialchars($msg_text) ?>
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
         <?php endif; ?>
@@ -142,9 +155,17 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                                     <?= csrfField() ?>
                                     <input type="hidden" name="action" value="ban">
                                     <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
-                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:11.5px;">Ban</button>
+                                    <button type="submit" class="btn btn-sm btn-outline-warning py-1 px-2" style="font-size:11.5px;">Ban</button>
                                 </form>
                                 <?php endif; ?>
+                                <form method="POST" action="" class="d-inline" onsubmit="return confirm('Permanently delete this user/merchant and all their listings? This cannot be undone.')">
+                                    <?= csrfField() ?>
+                                    <input type="hidden" name="action" value="delete">
+                                    <input type="hidden" name="user_id" value="<?= (int)$u['id'] ?>">
+                                    <button type="submit" class="btn btn-sm btn-outline-danger py-1 px-2" style="font-size:11.5px;" title="Delete User/Merchant">
+                                        <i class="bi bi-trash"></i> Delete
+                                    </button>
+                                </form>
                             </div>
                         </td>
                     </tr>
