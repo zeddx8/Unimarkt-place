@@ -38,39 +38,16 @@ define('DB_PORT', $default_port);
 mysqli_report(MYSQLI_REPORT_OFF);
 $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
 
-// Auto-recovery / auto-creation if database 'unimarket' does not exist yet
+// Auto-recovery / auto-creation of empty database if it does not exist yet (auto-seeding disabled)
 if (!$conn || $conn->connect_error) {
-    // Attempt connection without selecting DB to check if MySQL server is alive
     $root_conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, "", DB_PORT);
     if ($root_conn && !$root_conn->connect_error) {
         $root_conn->set_charset("utf8mb4");
         $root_conn->query("CREATE DATABASE IF NOT EXISTS " . DB_NAME . " CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
-        $root_conn->select_db(DB_NAME);
-
-        // Auto-seed schema from unimarket.sql
-        $sql_file = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'sql' . DIRECTORY_SEPARATOR . 'unimarket.sql';
-        if (file_exists($sql_file)) {
-            $sql_content = file_get_contents($sql_file);
-            $root_conn->multi_query($sql_content);
-            while ($root_conn->more_results() && $root_conn->next_result()) { /* flush multi query */ }
-        }
         $root_conn->close();
 
-        // Reconnect to unimarket database
+        // Reconnect to database (no auto-seeding)
         $conn = @new mysqli(DB_HOST, DB_USER, DB_PASS, DB_NAME, DB_PORT);
-    }
-}
-
-// Auto-seed tables if database exists but is completely empty (e.g. freshly created cloud MySQL on Railway/Aiven)
-if ($conn && !$conn->connect_error) {
-    $tables_check = $conn->query("SHOW TABLES");
-    if (!$tables_check || $tables_check->num_rows === 0) {
-        $sql_file = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'sql' . DIRECTORY_SEPARATOR . 'unimarket.sql';
-        if (file_exists($sql_file)) {
-            $sql_content = file_get_contents($sql_file);
-            $conn->multi_query($sql_content);
-            while ($conn->more_results() && $conn->next_result()) { /* flush multi query */ }
-        }
     }
 }
 
@@ -146,34 +123,6 @@ if ($conn && !$conn->connect_error) {
             @$conn->query("ALTER TABLE products ADD COLUMN reviews_count INT DEFAULT 18");
         }
         @$conn->query("ALTER TABLE products MODIFY COLUMN image MEDIUMTEXT DEFAULT NULL");
-    }
-
-    // Ensure campus & student entrepreneurship categories exist
-    $default_student_cats = [
-        ['Fashion & Streetwear', 'fashion-streetwear', 'bi-bag-heart', 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=600&auto=format&fit=crop&q=80'],
-        ['Tech, Gadgets & Accessories', 'tech-gadgets', 'bi-laptop', 'https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=600&auto=format&fit=crop&q=80'],
-        ['Beauty, Hair & Skincare', 'beauty-hair-skincare', 'bi-stars', 'https://images.unsplash.com/photo-1522335789203-aabd1fc54bc9?w=600&auto=format&fit=crop&q=80'],
-        ['Food, Pastries & Snacks', 'food-pastries-snacks', 'bi-cup-hot', 'https://images.unsplash.com/photo-1555396273-367ea4eb4db5?w=600&auto=format&fit=crop&q=80'],
-        ['Books, Stationery & Study Gear', 'books-stationery', 'bi-journal-bookmark', 'https://images.unsplash.com/photo-1497633762265-9d179a990aa6?w=600&auto=format&fit=crop&q=80'],
-        ['Dorm & Hostel Essentials', 'dorm-hostel-essentials', 'bi-house-heart', 'https://images.unsplash.com/photo-1556911220-e15b29be8c8f?w=600&auto=format&fit=crop&q=80'],
-        ['Footwear & Bags', 'footwear-bags', 'bi-handbag', 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=600&auto=format&fit=crop&q=80'],
-        ['Graphic Design & Digital Services', 'graphic-digital-services', 'bi-palette', 'https://images.unsplash.com/photo-1626785774573-4b799315345d?w=600&auto=format&fit=crop&q=80'],
-        ['Photography & Event Services', 'photography-event-services', 'bi-camera', 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=600&auto=format&fit=crop&q=80'],
-        ['Fitness & Sports Gear', 'fitness-sports-gear', 'bi-trophy', 'https://images.unsplash.com/photo-1517838277536-f5f99be501cd?w=600&auto=format&fit=crop&q=80'],
-        ['Art, Crafts & Custom Merch', 'art-crafts-custom-merch', 'bi-brush', 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80']
-    ];
-    $cat_count = $conn->query("SELECT COUNT(*) FROM categories")->fetch_row()[0] ?? 0;
-    if ($cat_count < count($default_student_cats)) {
-        foreach ($default_student_cats as $dc) {
-            $check = $conn->query("SELECT id FROM categories WHERE name = '" . $conn->real_escape_string($dc[0]) . "'");
-            if (!$check || $check->num_rows === 0) {
-                $cstmt = $conn->prepare("INSERT INTO categories (name, slug, icon, image) VALUES (?, ?, ?, ?)");
-                if ($cstmt) {
-                    $cstmt->bind_param("ssss", $dc[0], $dc[1], $dc[2], $dc[3]);
-                    $cstmt->execute();
-                }
-            }
-        }
     }
 }
 
