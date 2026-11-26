@@ -16,9 +16,71 @@ $user_stmt->execute();
 $current_user = $user_stmt->get_result()->fetch_assoc();
 
 $regions = getGhanaCampuses();
+$ghana_regions_list = getGhanaRegions();
+$location_dir = getGhanaLocationDirectory();
+$user_resolved_loc = resolveGhanaLocation($current_user['region'] ?? 'Greater Accra Region');
 $order_placed = false;
 $order_info = [];
 $checkout_error = '';
+
+// Live AJAX Delivery Fee Calculation Endpoint
+if (isset($_GET['action']) && $_GET['action'] === 'calculate_delivery' && $_SERVER['REQUEST_METHOD'] === 'POST') {
+    header('Content-Type: application/json; charset=utf-8');
+    $payload = json_decode(file_get_contents('php://input'), true);
+    $raw_items    = is_array($payload['items'] ?? null) ? $payload['items'] : [];
+    $buyer_campus = trim((string)($payload['buyer_campus'] ?? ($current_user['region'] ?? 'Greater Accra Region')));
+    $buyer_region = trim((string)($payload['buyer_region'] ?? ''));
+    $promo_code   = strtoupper(trim((string)($payload['promo_code'] ?? '')));
+
+    $prod_stmt = $conn->prepare("
+        SELECT p.id, p.seller_id, p.title, p.price, p.region, p.status, u.full_name AS seller_name
+        FROM products p
+        JOIN users u ON p.seller_id = u.id
+        WHERE p.id = ? LIMIT 1
+    ");
+
+    $validated = [];
+    $subtotal = 0.00;
+    if ($prod_stmt) {
+        foreach ($raw_items as $entry) {
+            $pid = (int)($entry['id'] ?? 0);
+            $qty = max(1, min(99, (int)($entry['quantity'] ?? 1)));
+            if ($pid < 1) continue;
+            $prod_stmt->bind_param("i", $pid);
+            $prod_stmt->execute();
+            $prod = $prod_stmt->get_result()->fetch_assoc();
+            if ($prod && $prod['status'] === 'available' && (int)$prod['seller_id'] !== $uid) {
+                $unit_price = round((float)$prod['price'], 2);
+                $subtotal = round($subtotal + ($unit_price * $qty), 2);
+                $validated[] = [
+                    'product_id'    => $pid,
+                    'seller_id'     => (int)$prod['seller_id'],
+                    'seller_name'   => $prod['seller_name'] ?? 'Student Seller',
+                    'seller_region' => $prod['region'] ?? 'Greater Accra Region',
+                    'price'         => $unit_price,
+                    'quantity'      => $qty,
+                ];
+            }
+        }
+    }
+
+    $delivery = calculateCartDeliverySummary($buyer_campus, $buyer_region, $validated);
+    $discount = in_array($promo_code, ['UNIMARKET20', 'WELCOMEGH', 'GHANA2026'], true)
+        ? min($subtotal, 20.00)
+        : 0.00;
+    $total = max(0.00, round($subtotal + $delivery['delivery_fee'] - $discount, 2));
+
+    echo json_encode([
+        'status'        => 'ok',
+        'subtotal'      => $subtotal,
+        'delivery_fee'  => $delivery['delivery_fee'],
+        'delivery_tier' => $delivery['delivery_tier'],
+        'breakdown'     => $delivery['breakdown'],
+        'discount'      => $discount,
+        'total'         => $total,
+    ]);
+    exit();
+}
 
 // Handle order submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
@@ -26,6 +88,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         $checkout_error = 'Invalid or expired security token. Please refresh and try again.';
     } else {
         $region           = sanitize($_POST['region'] ?? 'Greater Accra Region');
+        $buyer_region     = sanitize($_POST['buyer_region'] ?? '');
         $city             = sanitize($_POST['city'] ?? 'Accra');
         $delivery_address = sanitize($_POST['delivery_address'] ?? 'Home / Office Address');
         $phone            = sanitize($_POST['phone'] ?? ($current_user['phone'] ?? ''));
@@ -46,7 +109,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
 
         $validated_items = [];
         $subtotal = 0.00;
-        $prod_stmt = $conn->prepare("SELECT id, seller_id, title, price, status FROM products WHERE id = ? LIMIT 1");
+        $prod_stmt = $conn->prepare("
+            SELECT p.id, p.seller_id, p.title, p.price, p.region, p.status, u.full_name AS seller_name
+            FROM products p
+            JOIN users u ON p.seller_id = u.id
+            WHERE p.id = ? LIMIT 1
+        ");
 
         if (is_array($raw_items) && $prod_stmt) {
             foreach ($raw_items as $entry) {
@@ -68,10 +136,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                 $unit_price = round((float)$prod['price'], 2);
                 $subtotal = round($subtotal + ($unit_price * $qty), 2);
                 $validated_items[] = [
-                    'product_id' => $pid,
-                    'title'      => $prod['title'],
-                    'price'      => $unit_price,
-                    'quantity'   => $qty,
+                    'product_id'    => $pid,
+                    'seller_id'     => (int)$prod['seller_id'],
+                    'seller_name'   => $prod['seller_name'] ?? 'Student Seller',
+                    'seller_region' => $prod['region'] ?? 'Greater Accra Region',
+                    'title'         => $prod['title'],
+                    'price'         => $unit_price,
+                    'quantity'      => $qty,
                 ];
             }
         }
@@ -85,27 +156,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
         }
 
         if (empty($checkout_error)) {
-            // Server-side promo validation
+            // Server-side tiered delivery & promo validation
+            $delivery = calculateCartDeliverySummary($region, $buyer_region, $validated_items);
+            $delivery_fee  = $delivery['delivery_fee'];
+            $delivery_tier = $delivery['delivery_tier'];
+
             $promo_code = strtoupper(trim((string)($_POST['promo_code'] ?? '')));
             $discount = in_array($promo_code, ['UNIMARKET20', 'WELCOMEGH', 'GHANA2026'], true)
                 ? min($subtotal, 20.00)
                 : 0.00;
-            $delivery_fee = 5.00;
-            $total        = max(0.00, round($subtotal + $delivery_fee - $discount, 2));
+            $total         = max(0.00, round($subtotal + $delivery_fee - $discount, 2));
             $customer_name = $current_user['full_name'] ?? ($_SESSION['full_name'] ?? 'UniMarket Buyer');
-            $order_code   = 'UM-GH-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
+            $order_code    = 'UM-GH-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
 
             $conn->begin_transaction();
             try {
                 $order_stmt = $conn->prepare("
-                    INSERT INTO orders (order_code, user_id, customer_name, region, city, delivery_address, phone, payment_method, momo_number, subtotal, delivery_fee, discount, total, status)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing')
+                    INSERT INTO orders (order_code, user_id, customer_name, region, city, delivery_address, phone, payment_method, momo_number, subtotal, delivery_fee, delivery_tier, discount, total, status)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'processing')
                 ");
                 if (!$order_stmt) {
                     throw new Exception('Order preparation failed.');
                 }
                 $order_stmt->bind_param(
-                    "sisssssssdddd",
+                    "sisssssssddsdd",
                     $order_code,
                     $uid,
                     $customer_name,
@@ -117,6 +191,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                     $momo_number,
                     $subtotal,
                     $delivery_fee,
+                    $delivery_tier,
                     $discount,
                     $total
                 );
@@ -142,11 +217,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
                 $order_info = [
                     'order_code'       => $order_code,
                     'region'           => $region,
+                    'buyer_region'     => $buyer_region,
                     'city'             => $city,
                     'delivery_address' => $delivery_address,
                     'phone'            => $phone,
                     'payment_method'   => $payment_method,
                     'momo_number'      => $momo_number,
+                    'delivery_fee'     => $delivery_fee,
+                    'delivery_tier'    => $delivery_tier,
                     'total'            => $total,
                 ];
             } catch (Exception $e) {
@@ -187,6 +265,9 @@ include 'includes/header.php';
             <div class="d-flex justify-content-between align-items-center mb-3 pb-2 border-bottom">
                 <span class="text-muted small">Total Paid in Ghana Cedis:</span>
                 <span class="fw-bold fs-4 text-dark"><?= formatPrice($order_info['total']) ?></span>
+            </div>
+            <div class="small mb-2">
+                <strong>Delivery Tier:</strong> <?= htmlspecialchars($order_info['delivery_tier'] ?? 'Standard Delivery') ?> (<?= formatPrice($order_info['delivery_fee'] ?? 0) ?>)
             </div>
             <div class="small mb-2">
                 <strong>Delivery Destination:</strong> <?= htmlspecialchars($order_info['delivery_address']) ?>, <?= htmlspecialchars($order_info['city']) ?> (<?= htmlspecialchars($order_info['region']) ?>)
@@ -257,15 +338,27 @@ include 'includes/header.php';
                         <h5 class="fw-bold mb-0" style="font-size:16px;">Campus & Delivery Destination</h5>
                     </div>
 
-                    <div class="mb-3">
-                        <label class="um-field-label">Campus / University Institution <span class="text-danger">*</span></label>
-                        <select name="region" id="checkoutRegion" class="form-select um-input" required>
-                            <?php foreach ($regions as $r): ?>
-                            <option value="<?= $r ?>" <?= ($current_user['region'] === $r) ? 'selected' : '' ?>>
-                                <?= $r ?>
-                            </option>
-                            <?php endforeach; ?>
-                        </select>
+                    <div class="row g-3 mb-3">
+                        <div class="col-md-7">
+                            <label class="um-field-label">Campus / University Institution <span class="text-danger">*</span></label>
+                            <select name="region" id="checkoutRegion" class="form-select um-input" required>
+                                <?php foreach ($regions as $r): ?>
+                                <option value="<?= htmlspecialchars($r) ?>" <?= (($current_user['region'] ?? '') === $r) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($r) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
+                        <div class="col-md-5">
+                            <label class="um-field-label">Delivery Region <span class="text-danger">*</span></label>
+                            <select name="buyer_region" id="checkoutBuyerRegion" class="form-select um-input" required>
+                                <?php foreach ($ghana_regions_list as $gr): ?>
+                                <option value="<?= htmlspecialchars($gr) ?>" <?= (($user_resolved_loc['region'] ?? '') === $gr) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($gr) ?>
+                                </option>
+                                <?php endforeach; ?>
+                            </select>
+                        </div>
                     </div>
 
                     <div class="row g-3 mb-3">
@@ -385,10 +478,11 @@ include 'includes/header.php';
                     <span class="fw-bold text-dark" id="checkoutSubtotal">GH₵ 0.00</span>
                 </div>
 
-                <div class="d-flex justify-content-between mb-2 small text-muted">
-                    <span>Nationwide Delivery:</span>
-                    <span class="fw-bold text-dark">GH₵ 0.00</span>
+                <div class="d-flex justify-content-between align-items-start mb-2 small text-muted gap-2">
+                    <span id="checkoutDeliveryTierLabel">Delivery Fee:</span>
+                    <span class="fw-bold text-dark flex-shrink-0" id="checkoutDeliveryFee">GH₵ 0.00</span>
                 </div>
+                <div id="checkoutDeliveryBreakdown" class="mb-2 ps-2 border-start small text-muted" style="display:none;font-size:12px;"></div>
 
                 <div class="d-flex justify-content-between mb-3 small text-muted" id="checkoutDiscountRow" style="display:none;">
                     <span>Promotional Discount:</span>
@@ -411,10 +505,13 @@ include 'includes/header.php';
 </div>
 
 <script>
+window.UM_LOCATION_DIR = <?= json_encode($location_dir, JSON_HEX_TAG | JSON_HEX_AMP) ?>;
+
 document.addEventListener('DOMContentLoaded', function () {
     const items = UniCart.getItems();
-    const discount = parseFloat(sessionStorage.getItem('unimarket_promo_discount') || '0');
-    const shipping = 25.00;
+    const promoCode = (sessionStorage.getItem('unimarket_promo_code') || '').trim();
+    let fallbackDiscount = parseFloat(sessionStorage.getItem('unimarket_promo_discount') || '0');
+    if (isNaN(fallbackDiscount) || fallbackDiscount < 0) fallbackDiscount = 0;
 
     if (items.length === 0 && !<?= $order_placed ? 'true' : 'false' ?>) {
         window.location.href = 'cart.php';
@@ -423,20 +520,25 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const itemsContainer = document.getElementById('checkoutItemsList');
     const subtotalEl = document.getElementById('checkoutSubtotal');
+    const deliveryTierEl = document.getElementById('checkoutDeliveryTierLabel');
+    const deliveryFeeEl = document.getElementById('checkoutDeliveryFee');
+    const deliveryBreakdownEl = document.getElementById('checkoutDeliveryBreakdown');
     const totalEl = document.getElementById('checkoutTotalAmount');
     const hiddenCartItems = document.getElementById('hiddenCartItems');
     const hiddenPromoCode = document.getElementById('hiddenPromoCode');
     const discountRow = document.getElementById('checkoutDiscountRow');
     const discountAmount = document.getElementById('checkoutDiscountAmount');
+    const campusSelect = document.getElementById('checkoutRegion');
+    const regionSelect = document.getElementById('checkoutBuyerRegion');
 
-    let total = 0;
+    let subtotal = 0;
     let itemsHtml = '';
     const esc = window.escapeHtml || (s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c])));
 
     items.forEach(item => {
         const qty = Math.max(1, parseInt(item.quantity, 10) || 1);
         const line = (Number(item.price) || 0) * qty;
-        total += line;
+        subtotal += line;
         itemsHtml += `
             <div class="d-flex justify-content-between align-items-center mb-2 small">
                 <div class="text-truncate me-2" style="max-width:200px;">
@@ -448,25 +550,98 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     if (itemsContainer) itemsContainer.innerHTML = itemsHtml;
-    const finalTotal = Math.max(0, total + shipping - discount);
+    const payloadItems = items.map(i => ({
+        id: Number(i.id),
+        quantity: Math.max(1, parseInt(i.quantity, 10) || 1)
+    }));
+    if (hiddenCartItems) hiddenCartItems.value = JSON.stringify(payloadItems);
+    if (hiddenPromoCode) hiddenPromoCode.value = promoCode;
 
-    if (subtotalEl) subtotalEl.textContent = window.formatGHS(total);
-    if (totalEl) totalEl.textContent = window.formatGHS(finalTotal);
+    function updateSummaryUI(data) {
+        const sub = Number(data.subtotal ?? subtotal) || 0;
+        const fee = Number(data.delivery_fee ?? 0) || 0;
+        const disc = Number(data.discount ?? 0) || 0;
+        const tot = Number(data.total ?? Math.max(0, sub + fee - disc)) || 0;
 
-    if (hiddenCartItems) {
-        hiddenCartItems.value = JSON.stringify(items.map(i => ({
-            id: Number(i.id),
-            quantity: Math.max(1, parseInt(i.quantity, 10) || 1)
-        })));
-    }
-    if (hiddenPromoCode) {
-        hiddenPromoCode.value = sessionStorage.getItem('unimarket_promo_code') || '';
+        if (subtotalEl) subtotalEl.textContent = window.formatGHS(sub);
+        if (deliveryTierEl) deliveryTierEl.textContent = data.delivery_tier || 'Delivery Fee';
+        if (deliveryFeeEl) deliveryFeeEl.textContent = window.formatGHS(fee);
+        if (totalEl) totalEl.textContent = window.formatGHS(tot);
+
+        if (disc > 0 && discountRow && discountAmount) {
+            discountRow.style.display = 'flex';
+            discountAmount.textContent = '- ' + window.formatGHS(disc);
+        } else if (discountRow) {
+            discountRow.style.display = 'none';
+        }
+
+        if (deliveryBreakdownEl) {
+            const breakdown = Array.isArray(data.breakdown) ? data.breakdown : [];
+            if (breakdown.length > 1) {
+                deliveryBreakdownEl.innerHTML = breakdown.map(b => `
+                    <div class="d-flex justify-content-between align-items-center py-1 gap-2">
+                        <span class="text-truncate">${esc(b.seller_name)} · ${esc(b.tier)}</span>
+                        <span class="fw-semibold text-dark flex-shrink-0">${window.formatGHS(b.fee)}</span>
+                    </div>
+                `).join('');
+                deliveryBreakdownEl.style.display = 'block';
+            } else {
+                deliveryBreakdownEl.style.display = 'none';
+                deliveryBreakdownEl.innerHTML = '';
+            }
+        }
     }
 
-    if (discount > 0 && discountRow && discountAmount) {
-        discountRow.style.display = 'flex';
-        discountAmount.textContent = '- ' + window.formatGHS(discount);
+    function recalculateDelivery() {
+        const buyerCampus = campusSelect ? campusSelect.value : '';
+        const buyerRegion = regionSelect ? regionSelect.value : '';
+
+        fetch('checkout.php?action=calculate_delivery', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                items: payloadItems,
+                buyer_campus: buyerCampus,
+                buyer_region: buyerRegion,
+                promo_code: promoCode
+            })
+        })
+        .then(res => {
+            if (!res.ok) throw new Error('Delivery calculation failed');
+            return res.json();
+        })
+        .then(data => {
+            if (data && data.status === 'ok') {
+                updateSummaryUI(data);
+            }
+        })
+        .catch(() => {
+            updateSummaryUI({
+                subtotal: subtotal,
+                delivery_fee: 15.00,
+                delivery_tier: 'Standard Delivery',
+                discount: fallbackDiscount,
+                total: Math.max(0, subtotal + 15.00 - fallbackDiscount)
+            });
+        });
     }
+
+    if (campusSelect) {
+        campusSelect.addEventListener('change', function () {
+            const meta = window.UM_LOCATION_DIR && window.UM_LOCATION_DIR[this.value];
+            if (meta && meta.region && regionSelect) {
+                regionSelect.value = meta.region;
+            }
+            recalculateDelivery();
+        });
+    }
+
+    if (regionSelect) {
+        regionSelect.addEventListener('change', recalculateDelivery);
+    }
+
+    // Initial calculation on page load
+    recalculateDelivery();
 
     // Toggle MoMo field based on selected payment
     document.querySelectorAll('input[name="payment_method"]').forEach(radio => {

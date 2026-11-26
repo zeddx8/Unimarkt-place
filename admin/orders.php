@@ -243,6 +243,7 @@ $unread_messages = (int)($conn->query("SELECT COUNT(*) FROM messages WHERE is_re
                                             <div class="mb-3 p-3 bg-light rounded-3 small">
                                                 <div><strong>Customer:</strong> <?= htmlspecialchars($ord['customer_name']) ?> (<?= htmlspecialchars($ord['phone']) ?>)</div>
                                                 <div><strong>Delivery Destination:</strong> <?= htmlspecialchars($ord['delivery_address']) ?>, <?= htmlspecialchars($ord['region']) ?></div>
+                                                <div><strong>Delivery Tier:</strong> <?= htmlspecialchars(!empty($ord['delivery_tier']) ? $ord['delivery_tier'] : 'Standard Delivery') ?> (<?= formatPrice($ord['delivery_fee'] ?? 0) ?>)</div>
                                                 <div><strong>Payment Method:</strong> <?= strtoupper(str_replace('_',' ',$ord['payment_method'])) ?></div>
                                             </div>
                                             <h6 class="fw-bold mb-2 small text-uppercase text-muted">Purchased Line Items</h6>

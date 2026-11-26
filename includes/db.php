@@ -124,6 +124,16 @@ if ($conn && !$conn->connect_error) {
         }
         @$conn->query("ALTER TABLE products MODIFY COLUMN image MEDIUMTEXT DEFAULT NULL");
     }
+
+    // Check orders table columns
+    $o_cols = $conn->query("SHOW COLUMNS FROM orders");
+    if ($o_cols) {
+        $ocols = [];
+        while ($c = $o_cols->fetch_assoc()) { $ocols[] = $c['Field']; }
+        if (!in_array('delivery_tier', $ocols)) {
+            @$conn->query("ALTER TABLE orders ADD COLUMN delivery_tier VARCHAR(120) DEFAULT NULL AFTER delivery_fee");
+        }
+    }
 }
 
 // ── Session Initialization ───────────────────────────────────
@@ -279,6 +289,193 @@ function getGhanaCampuses() {
         'Ashanti Region (Non-Campus / General)',
         'Western Region (Non-Campus / General)',
         'Other Ghanaian Campus / Region'
+    ];
+}
+
+/**
+ * Returns coordinates and canonical Ghanaian region mapping for campuses and regions.
+ */
+function getGhanaLocationDirectory() {
+    return [
+        // Universities & Campuses
+        'University of Ghana (UG - Legon)'                       => ['region' => 'Greater Accra Region',    'lat' => 5.6506,  'lng' => -0.1870, 'is_campus' => true],
+        'Kwame Nkrumah Univ of Science & Tech (KNUST - Kumasi)'  => ['region' => 'Ashanti Region (Kumasi)', 'lat' => 6.6745,  'lng' => -1.5716, 'is_campus' => true],
+        'University of Cape Coast (UCC - Cape Coast)'            => ['region' => 'Central Region (Cape Coast)', 'lat' => 5.1036, 'lng' => -1.2825, 'is_campus' => true],
+        'University of Professional Studies, Accra (UPSA)'       => ['region' => 'Greater Accra Region',    'lat' => 5.6626,  'lng' => -0.1665, 'is_campus' => true],
+        'Ashesi University (Berekuso)'                           => ['region' => 'Eastern Region (Koforidua)', 'lat' => 5.7597, 'lng' => -0.2199, 'is_campus' => true],
+        'Accra Technical University (ATU)'                       => ['region' => 'Greater Accra Region',    'lat' => 5.5545,  'lng' => -0.2072, 'is_campus' => true],
+        'Kumasi Technical University (KsTU)'                     => ['region' => 'Ashanti Region (Kumasi)', 'lat' => 6.6915,  'lng' => -1.6152, 'is_campus' => true],
+        'Cape Coast Technical University (CCTU)'                 => ['region' => 'Central Region (Cape Coast)', 'lat' => 5.1310, 'lng' => -1.2891, 'is_campus' => true],
+        'Ghana Communication Technology Univ (GCTU)'             => ['region' => 'Greater Accra Region',    'lat' => 5.5960,  'lng' => -0.2233, 'is_campus' => true],
+        'GIMPA (Greenhill, Achimota)'                            => ['region' => 'Greater Accra Region',    'lat' => 5.6297,  'lng' => -0.2089, 'is_campus' => true],
+        'University of Education, Winneba (UEW)'                 => ['region' => 'Central Region (Cape Coast)', 'lat' => 5.3396, 'lng' => -0.6254, 'is_campus' => true],
+        'University of Mines and Technology (UMaT - Tarkwa)'     => ['region' => 'Western Region (Takoradi)', 'lat' => 5.2989, 'lng' => -1.9990, 'is_campus' => true],
+        'Academic City University College'                       => ['region' => 'Greater Accra Region',    'lat' => 5.7069,  'lng' => -0.1753, 'is_campus' => true],
+        'Pentecost University (Sowutuom)'                        => ['region' => 'Greater Accra Region',    'lat' => 5.6203,  'lng' => -0.2738, 'is_campus' => true],
+        'Central University (Miotso / Dawhenya)'                 => ['region' => 'Greater Accra Region',    'lat' => 5.7647,  'lng' => 0.0528,  'is_campus' => true],
+        'Ho Technical University (HTU)'                          => ['region' => 'Volta Region (Ho)',       'lat' => 6.5979,  'lng' => 0.4648,  'is_campus' => true],
+        'Tamale Technical University (TaTU)'                     => ['region' => 'Northern Region (Tamale)', 'lat' => 9.4330, 'lng' => -0.8400, 'is_campus' => true],
+
+        // Non-Campus & Regional Hubs
+        'Greater Accra (Non-Campus / General)'                   => ['region' => 'Greater Accra Region',      'lat' => 5.6037,  'lng' => -0.1870, 'is_campus' => false],
+        'Ashanti Region (Non-Campus / General)'                  => ['region' => 'Ashanti Region (Kumasi)',   'lat' => 6.6885,  'lng' => -1.6244, 'is_campus' => false],
+        'Western Region (Non-Campus / General)'                  => ['region' => 'Western Region (Takoradi)', 'lat' => 4.8986,  'lng' => -1.7603, 'is_campus' => false],
+        'Other Ghanaian Campus / Region'                         => ['region' => 'Greater Accra Region',      'lat' => 5.6037,  'lng' => -0.1870, 'is_campus' => false],
+
+        'Greater Accra Region'                                   => ['region' => 'Greater Accra Region',      'lat' => 5.6037,  'lng' => -0.1870, 'is_campus' => false],
+        'Ashanti Region (Kumasi)'                                => ['region' => 'Ashanti Region (Kumasi)',   'lat' => 6.6885,  'lng' => -1.6244, 'is_campus' => false],
+        'Western Region (Takoradi)'                              => ['region' => 'Western Region (Takoradi)', 'lat' => 4.8986,  'lng' => -1.7603, 'is_campus' => false],
+        'Central Region (Cape Coast)'                            => ['region' => 'Central Region (Cape Coast)', 'lat' => 5.1053, 'lng' => -1.2466, 'is_campus' => false],
+        'Eastern Region (Koforidua)'                             => ['region' => 'Eastern Region (Koforidua)', 'lat' => 6.0941, 'lng' => -0.2591, 'is_campus' => false],
+        'Volta Region (Ho)'                                      => ['region' => 'Volta Region (Ho)',         'lat' => 6.6101,  'lng' => 0.4703,  'is_campus' => false],
+        'Northern Region (Tamale)'                               => ['region' => 'Northern Region (Tamale)',  'lat' => 9.4034,  'lng' => -0.8424, 'is_campus' => false],
+        'Bono Region (Sunyani)'                                  => ['region' => 'Bono Region (Sunyani)',     'lat' => 7.3349,  'lng' => -2.3123, 'is_campus' => false],
+        'Upper East Region (Bolgatanga)'                         => ['region' => 'Upper East Region (Bolgatanga)', 'lat' => 10.7856, 'lng' => -0.8514, 'is_campus' => false],
+        'Upper West Region (Wa)'                                 => ['region' => 'Upper West Region (Wa)',    'lat' => 10.0601, 'lng' => -2.5099, 'is_campus' => false],
+        'Oti Region'                                             => ['region' => 'Oti Region',                'lat' => 8.0750,  'lng' => 0.1750,  'is_campus' => false],
+        'Ahafo Region'                                           => ['region' => 'Ahafo Region',              'lat' => 6.8200,  'lng' => -2.5167, 'is_campus' => false],
+        'Bono East Region'                                       => ['region' => 'Bono East Region',          'lat' => 7.5833,  'lng' => -1.9333, 'is_campus' => false],
+        'North East Region'                                      => ['region' => 'North East Region',         'lat' => 10.5250, 'lng' => -0.3667, 'is_campus' => false],
+        'Savannah Region'                                        => ['region' => 'Savannah Region',           'lat' => 9.0833,  'lng' => -1.8167, 'is_campus' => false],
+        'Western North Region'                                   => ['region' => 'Western North Region',      'lat' => 6.2000,  'lng' => -2.4833, 'is_campus' => false],
+    ];
+}
+
+/**
+ * Resolves a campus or region string into canonical location metadata.
+ */
+function resolveGhanaLocation($locationName, $explicitRegion = '') {
+    $dir = getGhanaLocationDirectory();
+    $loc = trim((string)$locationName);
+    $reg = trim((string)$explicitRegion);
+
+    $matchedKey = null;
+    if ($loc !== '' && isset($dir[$loc])) {
+        $matchedKey = $loc;
+    } elseif ($loc !== '') {
+        foreach ($dir as $key => $meta) {
+            if (strcasecmp($key, $loc) === 0 || stripos($key, $loc) !== false || stripos($loc, $key) !== false) {
+                $matchedKey = $key;
+                break;
+            }
+        }
+    }
+
+    $base = $matchedKey !== null
+        ? array_merge($dir[$matchedKey], ['canonical' => $matchedKey])
+        : ['canonical' => ($loc ?: 'Greater Accra Region'), 'region' => 'Greater Accra Region', 'lat' => 5.6037, 'lng' => -0.1870, 'is_campus' => false];
+
+    if ($reg !== '' && isset($dir[$reg])) {
+        $base['region'] = $dir[$reg]['region'];
+        if (!$base['is_campus']) {
+            $base['lat'] = $dir[$reg]['lat'];
+            $base['lng'] = $dir[$reg]['lng'];
+        }
+    }
+
+    return $base;
+}
+
+/**
+ * Computes great-circle distance in kilometers between two coordinates via Haversine formula.
+ */
+function haversineDistanceKm($lat1, $lng1, $lat2, $lng2) {
+    $earthRadiusKm = 6371.0;
+    $dLat = deg2rad($lat2 - $lat1);
+    $dLng = deg2rad($lng2 - $lng1);
+    $a = sin($dLat / 2) * sin($dLat / 2)
+       + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
+       * sin($dLng / 2) * sin($dLng / 2);
+    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+    return $earthRadiusKm * $c;
+}
+
+/**
+ * Calculates tiered delivery fee for a single seller shipment.
+ * - Tier 1: Same Campus -> GH₵ 5.00
+ * - Tier 2: Same Region (Outside Campus) -> GH₵ 15.00
+ * - Tier 3: Inter-Regional -> GH₵ 25.00 base + GH₵ 0.15/km (rounded to nearest cedi)
+ */
+function calculateSellerDeliveryFee($buyerCampus, $buyerRegion, $sellerLocation) {
+    $buyer  = resolveGhanaLocation($buyerCampus, $buyerRegion);
+    $seller = resolveGhanaLocation($sellerLocation);
+
+    // Tier 1: Same Campus Delivery
+    if ($buyer['is_campus'] && $seller['is_campus'] && strcasecmp($buyer['canonical'], $seller['canonical']) === 0) {
+        return [
+            'fee'         => 5.00,
+            'tier'        => 'Same-Campus Delivery',
+            'distance_km' => 0,
+        ];
+    }
+
+    // Tier 2: Same Region (Outside Campus) Delivery
+    if (strcasecmp($buyer['region'], $seller['region']) === 0) {
+        return [
+            'fee'         => 15.00,
+            'tier'        => 'Same-Region Delivery',
+            'distance_km' => 0,
+        ];
+    }
+
+    // Tier 3: Outside Region (Inter-Regional) Distance-Based Delivery
+    $km = max(1, (int)round(haversineDistanceKm($seller['lat'], $seller['lng'], $buyer['lat'], $buyer['lng'])));
+    $fee = (float)round(25.00 + (0.15 * $km), 0);
+
+    return [
+        'fee'         => $fee,
+        'tier'        => "Inter-Regional Delivery (~{$km} km)",
+        'distance_km' => $km,
+    ];
+}
+
+/**
+ * Calculates total & per-seller delivery breakdown for a validated cart.
+ */
+function calculateCartDeliverySummary($buyerCampus, $buyerRegion, $items) {
+    if (empty($items)) {
+        return [
+            'delivery_fee'  => 0.00,
+            'delivery_tier' => 'Standard Delivery',
+            'breakdown'     => [],
+        ];
+    }
+
+    $sellerGroups = [];
+    foreach ($items as $item) {
+        $sid = (int)($item['seller_id'] ?? 0);
+        $sLoc = trim((string)($item['seller_region'] ?? ($item['region'] ?? 'Greater Accra Region')));
+        $groupKey = $sid . '|' . strtolower($sLoc);
+        if (!isset($sellerGroups[$groupKey])) {
+            $sellerGroups[$groupKey] = [
+                'seller_name'     => $item['seller_name'] ?? 'Student Seller',
+                'seller_location' => $sLoc,
+            ];
+        }
+    }
+
+    $totalFee = 0.00;
+    $breakdown = [];
+    foreach ($sellerGroups as $grp) {
+        $calc = calculateSellerDeliveryFee($buyerCampus, $buyerRegion, $grp['seller_location']);
+        $totalFee = round($totalFee + $calc['fee'], 2);
+        $breakdown[] = [
+            'seller_name'     => $grp['seller_name'],
+            'seller_location' => $grp['seller_location'],
+            'fee'             => $calc['fee'],
+            'tier'            => $calc['tier'],
+            'distance_km'     => $calc['distance_km'],
+        ];
+    }
+
+    $summaryTier = count($breakdown) === 1
+        ? $breakdown[0]['tier']
+        : 'Multi-Seller Delivery (' . count($breakdown) . ' sellers)';
+
+    return [
+        'delivery_fee'  => $totalFee,
+        'delivery_tier' => $summaryTier,
+        'breakdown'     => $breakdown,
     ];
 }
 

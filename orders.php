@@ -88,6 +88,9 @@ include 'includes/header.php';
                         <div class="fw-bold text-dark mb-1"><i class="bi bi-geo-alt-fill text-danger me-1"></i> Delivery Destination</div>
                         <div class="text-muted"><?= htmlspecialchars($ord['delivery_address']) ?>, <?= htmlspecialchars($ord['city']) ?></div>
                         <div class="text-muted"><?= htmlspecialchars($ord['region']) ?> · <?= htmlspecialchars($ord['phone']) ?></div>
+                        <div class="text-dark fw-semibold mt-1">
+                            <?= htmlspecialchars(!empty($ord['delivery_tier']) ? $ord['delivery_tier'] : 'Standard Delivery') ?> — <?= formatPrice($ord['delivery_fee'] ?? 0) ?>
+                        </div>
                     </div>
                 </div>
                 <div class="col-md-6">

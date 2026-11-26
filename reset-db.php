@@ -151,6 +151,7 @@ CREATE TABLE orders (
     momo_number VARCHAR(30) DEFAULT NULL,
     subtotal DECIMAL(10,2) NOT NULL,
     delivery_fee DECIMAL(10,2) DEFAULT 0.00,
+    delivery_tier VARCHAR(120) DEFAULT NULL,
     discount DECIMAL(10,2) DEFAULT 0.00,
     total DECIMAL(10,2) NOT NULL,
     status ENUM('pending','processing','shipped','delivered','cancelled') DEFAULT 'pending',
