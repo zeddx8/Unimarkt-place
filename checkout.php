@@ -90,7 +90,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['place_order'])) {
             $discount = in_array($promo_code, ['UNIMARKET20', 'WELCOMEGH', 'GHANA2026'], true)
                 ? min($subtotal, 20.00)
                 : 0.00;
-            $delivery_fee = 25.00;
+            $delivery_fee = 5.00;
             $total        = max(0.00, round($subtotal + $delivery_fee - $discount, 2));
             $customer_name = $current_user['full_name'] ?? ($_SESSION['full_name'] ?? 'UniMarket Buyer');
             $order_code   = 'UM-GH-' . strtoupper(substr(bin2hex(random_bytes(4)), 0, 7));
