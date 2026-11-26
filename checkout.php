@@ -387,7 +387,7 @@ include 'includes/header.php';
 
                 <div class="d-flex justify-content-between mb-2 small text-muted">
                     <span>Nationwide Delivery:</span>
-                    <span class="fw-bold text-dark">GH₵ 25.00</span>
+                    <span class="fw-bold text-dark">GH₵ 0.00</span>
                 </div>
 
                 <div class="d-flex justify-content-between mb-3 small text-muted" id="checkoutDiscountRow" style="display:none;">
