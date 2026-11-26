@@ -64,7 +64,7 @@ if (isLoggedIn()) {
     <div class="container d-flex justify-content-between align-items-center">
         <div>
             <i class="bi bi-mortarboard-fill text-warning me-1"></i>
-            <span>Ghana's Student Entrepreneurship & Campus Commerce Hub · Legon, KNUST, UCC, UPSA, Ashesi & Nationwide</span>
+            <span>Ghana's Student Entrepreneurship & Campus Commerce Hub · CCTU, UCC, Legon, KNUST,  UPSA, Ashesi & Nationwide</span>
         </div>
         <div class="d-flex gap-3">
             <span><i class="bi bi-shield-check text-success me-1"></i> Verified Student Founders</span>
